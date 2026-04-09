@@ -1,0 +1,5 @@
+{
+  "name": "IndoRecs",
+  "description": "Product recommendation assistant for Indonesian users, providing tailored suggestions with Shopee and Tokopedia links.",
+  "requestFramePermissions": []
+}
