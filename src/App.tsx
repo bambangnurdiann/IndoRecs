@@ -92,7 +92,7 @@ Rules:
 `;
 
       const response = await ai.models.generateContent({
-        model: 'gemini-2.5-flash',
+        model: 'gemini-3-flash-preview',
         contents: prompt,
         config: {
           responseMimeType: 'application/json',
@@ -109,7 +109,11 @@ Rules:
       }
     } catch (err: any) {
       console.error(err);
-      setError(err.message || 'An error occurred while fetching recommendations.');
+      if (err.status === 503 || err.message?.includes('503') || err.message?.includes('high demand')) {
+        setError('Server AI sedang sibuk karena tingginya permintaan. Silakan coba lagi dalam beberapa saat.');
+      } else {
+        setError(err.message || 'An error occurred while fetching recommendations.');
+      }
     } finally {
       setLoading(false);
     }
