@@ -7,8 +7,15 @@ if (typeof globalThis !== 'undefined' && !globalThis.fetch && typeof window !== 
   globalThis.fetch = window.fetch.bind(window);
 }
 
-// Initialize Gemini API
-const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+// Initialize Gemini API lazily to prevent crashes if env var is missing
+let ai: GoogleGenAI | null = null;
+try {
+  if (process.env.GEMINI_API_KEY) {
+    ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+  }
+} catch (e) {
+  console.error("Failed to initialize Gemini API", e);
+}
 
 interface ProductRec {
   name: string;
@@ -42,6 +49,12 @@ export default function App() {
     setLoading(true);
     setError('');
     setRecommendations([]);
+
+    if (!ai) {
+      setError('GEMINI_API_KEY is missing. Please add it to your Vercel Environment Variables.');
+      setLoading(false);
+      return;
+    }
 
     try {
       const responseSchema: Schema = {
