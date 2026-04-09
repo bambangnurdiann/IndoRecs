@@ -1,7 +1,11 @@
-import { useState } from 'react';
+import React, { useState } from 'react';
 import { GoogleGenAI, Type, Schema } from '@google/genai';
 import { Search, ShoppingBag, ExternalLink, ThumbsUp, ThumbsDown, Loader2, Tag, CheckCircle2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
+
+if (typeof globalThis !== 'undefined' && !globalThis.fetch && typeof window !== 'undefined' && window.fetch) {
+  globalThis.fetch = window.fetch.bind(window);
+}
 
 // Initialize Gemini API
 const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
