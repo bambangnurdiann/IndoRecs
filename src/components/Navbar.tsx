@@ -13,7 +13,7 @@ export function Navbar({ activeTab, setActiveTab }: NavbarProps) {
   const { user, loginWithGoogle, logout } = useAuth();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const location = useLocation();
-  const isAdmin = user && (user.email === 'Bambangnurdiann@gmail.com');
+  const isAdmin = user && (user.email?.toLowerCase() === 'bambangnurdiann@gmail.com');
 
   const navItems = [
     { id: 'search', label: 'Cari', icon: Search },

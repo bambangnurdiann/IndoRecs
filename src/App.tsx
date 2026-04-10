@@ -21,7 +21,7 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   }
 
   // Check if user is admin (using the same logic as firestore rules)
-  const isAdmin = user && (user.email === 'Bambangnurdiann@gmail.com');
+  const isAdmin = user && (user.email?.toLowerCase() === 'bambangnurdiann@gmail.com');
 
   if (!user || !isAdmin) {
     return <Navigate to="/" replace />;
