@@ -44,6 +44,20 @@ service cloud.firestore {
     //
     // ===============================================================
 
+    // Collection: ads
+    // Document ID: auto-generated
+    // Fields:
+    //   - title: string (required)
+    //   - image_url: string (required)
+    //   - target_url: string (required)
+    //   - placement: string (required) - right_sidebar, top_banner, inline, sponsored
+    //   - start_date: timestamp (required)
+    //   - end_date: timestamp (required)
+    //   - is_active: boolean (required)
+    //   - priority: number (optional)
+    //   - created_at: timestamp (required, immutable)
+    //   - updated_at: timestamp (required)
+    //
     // ===============================================================
     // Helper Functions
     // ===============================================================
@@ -68,6 +82,12 @@ service cloud.firestore {
     function uidNotModified() {
       return !('userId' in request.resource.data) ||
         request.resource.data.userId == resource.data.userId;
+    }
+
+    function isAdmin() {
+      return isAuthenticated() &&
+        (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin' ||
+          (request.auth.token.email == "Bambangnurdiann@gmail.com" && request.auth.token.email_verified == true));
     }
 
     // ===============================================================
@@ -104,6 +124,21 @@ service cloud.firestore {
              data.createdAt is timestamp;
     }
 
+    function isValidAd() {
+      let data = request.resource.data;
+      return hasRequiredFields(['title', 'image_url', 'target_url', 'placement', 'start_date', 'end_date', 'is_active', 'created_at', 'updated_at']) &&
+             data.title is string && data.title.size() > 0 && data.title.size() < 200 &&
+             data.image_url is string && data.image_url.size() > 0 &&
+             data.target_url is string && data.target_url.size() > 0 &&
+             data.placement in ['right_sidebar', 'top_banner', 'inline', 'sponsored'] &&
+             data.start_date is timestamp &&
+             data.end_date is timestamp &&
+             data.is_active is bool &&
+             (!('priority' in data) || data.priority is number) &&
+             data.created_at is timestamp &&
+             data.updated_at is timestamp;
+    }
+
     // ===============================================================
     // Rules
     // ===============================================================
@@ -132,6 +167,11 @@ service cloud.firestore {
       allow create: if isAuthenticated() && isValidFeedback() && uidUnchanged();
       allow update: if isOwner(resource.data.userId) && isValidFeedback() && uidNotModified() && request.resource.data.createdAt == resource.data.createdAt;
       allow delete: if isOwner(resource.data.userId);
+    }
+
+    match /ads/{adId} {
+      allow read: if true; // Ads are public
+      allow write: if isAdmin() && isValidAd();
     }
   }
 }
