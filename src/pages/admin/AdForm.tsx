@@ -129,30 +129,60 @@ export default function AdForm() {
         </h1>
 
         <form onSubmit={handleSubmit} className="space-y-6">
-          {/* Image Upload */}
-          <div>
-            <label className="block text-sm font-bold text-gray-700 mb-2">Gambar Iklan</label>
-            <div className="relative group">
-              {imagePreview ? (
-                <div className="relative w-full aspect-video bg-gray-50 rounded-xl overflow-hidden border-2 border-dashed border-gray-200">
-                  <img src={imagePreview} alt="Preview" className="w-full h-full object-contain" />
-                  <button 
-                    type="button"
-                    onClick={() => { setImagePreview(null); setImageFile(null); }}
-                    className="absolute top-2 right-2 p-1.5 bg-white/80 hover:bg-white text-gray-600 rounded-full shadow-sm transition-all"
-                  >
-                    <X className="w-4 h-4" />
-                  </button>
+          {/* Image Upload & URL Fallback */}
+          <div className="space-y-4">
+            <label className="block text-sm font-bold text-gray-700">Gambar Iklan</label>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {/* Upload Option */}
+              <div className="relative group">
+                {imagePreview && imageFile ? (
+                  <div className="relative w-full aspect-video bg-gray-50 rounded-xl overflow-hidden border-2 border-dashed border-gray-200">
+                    <img src={imagePreview} alt="Preview" className="w-full h-full object-contain" />
+                    <button 
+                      type="button"
+                      onClick={() => { setImagePreview(null); setImageFile(null); }}
+                      className="absolute top-2 right-2 p-1.5 bg-white/80 hover:bg-white text-gray-600 rounded-full shadow-sm transition-all"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  </div>
+                ) : (
+                  <label className="flex flex-col items-center justify-center w-full h-full min-h-[150px] bg-gray-50 rounded-xl border-2 border-dashed border-gray-200 cursor-pointer hover:bg-gray-100 transition-all">
+                    <Upload className="w-6 h-6 text-gray-400 mb-2" />
+                    <span className="text-xs font-medium text-gray-500">Upload File</span>
+                    <input type="file" className="hidden" accept="image/*" onChange={handleImageChange} />
+                  </label>
+                )}
+              </div>
+
+              {/* URL Option */}
+              <div className="flex flex-col justify-center space-y-2">
+                <span className="text-xs font-bold text-gray-400 uppercase text-center">ATAU</span>
+                <div className="space-y-1">
+                  <label className="text-[11px] font-bold text-gray-500 uppercase">Input Link Gambar Langsung</label>
+                  <input 
+                    type="url"
+                    value={formData.image_url}
+                    onChange={e => {
+                      setFormData({ ...formData, image_url: e.target.value });
+                      setImagePreview(e.target.value);
+                      setImageFile(null); // Clear file if URL is used
+                    }}
+                    className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-green-500 transition-all"
+                    placeholder="https://example.com/image.jpg"
+                  />
+                  <p className="text-[10px] text-gray-400 italic">Gunakan ini jika upload error (CORS)</p>
                 </div>
-              ) : (
-                <label className="flex flex-col items-center justify-center w-full aspect-video bg-gray-50 rounded-xl border-2 border-dashed border-gray-200 cursor-pointer hover:bg-gray-100 transition-all">
-                  <Upload className="w-8 h-8 text-gray-400 mb-2" />
-                  <span className="text-sm font-medium text-gray-500">Klik untuk upload gambar</span>
-                  <span className="text-xs text-gray-400 mt-1">Format: JPG, PNG, WEBP (Max 2MB)</span>
-                  <input type="file" className="hidden" accept="image/*" onChange={handleImageChange} required={!isEdit} />
-                </label>
-              )}
+              </div>
             </div>
+            
+            {/* Preview for URL */}
+            {imagePreview && !imageFile && (
+              <div className="relative w-full aspect-video bg-gray-50 rounded-xl overflow-hidden border border-gray-200">
+                <img src={imagePreview} alt="Preview" className="w-full h-full object-contain" referrerPolicy="no-referrer" />
+              </div>
+            )}
           </div>
 
           {/* Title */}
