@@ -138,7 +138,7 @@ Balas HANYA JSON dengan struktur:
 Kembalikan tepat 3 produk. You are IndoRecs, an expert product recommendation assistant for Indonesian consumers. Always respond ONLY in valid JSON, no markdown, no backticks. All products must be real and available in Indonesia. Respond in Bahasa Indonesia.`;
 
       const response = await ai.models.generateContent({
-        model: 'gemini-2.5-flash',
+        model: 'gemini-3-flash-preview',
         contents: prompt,
         config: {
           responseMimeType: "application/json",
@@ -219,7 +219,7 @@ Balas HANYA JSON:
 Always respond ONLY in valid JSON, no markdown, no backticks. Respond in Bahasa Indonesia.`;
 
       const response = await ai.models.generateContent({
-        model: 'gemini-2.5-flash',
+        model: 'gemini-3-flash-preview',
         contents: prompt,
         config: { responseMimeType: "application/json" }
       });
