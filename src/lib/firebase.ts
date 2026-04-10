@@ -1,15 +1,7 @@
 import { initializeApp } from 'firebase/app';
 import { getAuth, GoogleAuthProvider } from 'firebase/auth';
 import { getFirestore } from 'firebase/firestore';
-
-const firebaseConfig = {
-  apiKey: "YOUR_API_KEY",
-  authDomain: "YOUR_PROJECT.firebaseapp.com",
-  projectId: "YOUR_PROJECT_ID",
-  storageBucket: "YOUR_PROJECT.appspot.com",
-  messagingSenderId: "YOUR_SENDER_ID",
-  appId: "YOUR_APP_ID"
-};
+import firebaseConfig from '../../firebase-applet-config.json';
 
 // Initialize Firebase
 let app;
@@ -20,7 +12,7 @@ export const googleProvider = new GoogleAuthProvider();
 try {
   app = initializeApp(firebaseConfig);
   auth = getAuth(app);
-  db = getFirestore(app);
+  db = getFirestore(app, firebaseConfig.firestoreDatabaseId);
 } catch (error) {
   console.error("Firebase initialization error. Please update your firebaseConfig in src/lib/firebase.ts", error);
   // Provide dummy objects to prevent crashes before config is set

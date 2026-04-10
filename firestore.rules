@@ -1,0 +1,137 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ===============================================================
+    // Assumed Data Model
+    // ===============================================================
+    //
+    // Collection: searches
+    // Document ID: auto-generated
+    // Fields:
+    //   - userId: string (required, immutable) - The UID of the user who performed the search
+    //   - category: string (required) - The selected category
+    //   - budget: string (required) - The selected budget
+    //   - needs: list (required) - The selected needs
+    //   - details: string (optional) - Additional details
+    //   - results: map (required) - The recommendation results
+    //   - createdAt: timestamp (required, immutable) - When the search was performed
+    //
+    // Collection: wishlist
+    // Document ID: auto-generated
+    // Fields:
+    //   - userId: string (required, immutable) - The UID of the user
+    //   - product: map (required) - The product details
+    //   - savedAt: timestamp (required, immutable) - When the product was saved
+    //
+    // Collection: feedback
+    // Document ID: auto-generated
+    // Fields:
+    //   - userId: string (required, immutable) - The UID of the user
+    //   - searchId: string (required) - The ID of the search this feedback relates to
+    //   - productName: string (required) - The name of the product
+    //   - helpful: boolean (required) - Whether the recommendation was helpful
+    //   - createdAt: timestamp (required, immutable) - When the feedback was submitted
+    //
+    // Collection: users
+    // Document ID: userId
+    // Fields:
+    //   - displayName: string
+    //   - email: string
+    //   - photoURL: string
+    //   - lastLoginAt: timestamp
+    //
+    // ===============================================================
+
+    // ===============================================================
+    // Helper Functions
+    // ===============================================================
+    
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+    
+    function hasRequiredFields(fields) {
+      return request.resource.data.keys().hasAll(fields);
+    }
+    
+    function uidUnchanged() {
+      return !('userId' in request.resource.data) ||
+        request.resource.data.userId == request.auth.uid;
+    }
+
+    function uidNotModified() {
+      return !('userId' in request.resource.data) ||
+        request.resource.data.userId == resource.data.userId;
+    }
+
+    // ===============================================================
+    // Domain Validators
+    // ===============================================================
+
+    function isValidSearch() {
+      let data = request.resource.data;
+      return hasRequiredFields(['userId', 'category', 'budget', 'needs', 'results', 'createdAt']) &&
+             data.userId is string && data.userId.size() > 0 && data.userId.size() < 100 &&
+             data.category is string && data.category.size() > 0 && data.category.size() < 100 &&
+             data.budget is string && data.budget.size() > 0 && data.budget.size() < 100 &&
+             data.needs is list && data.needs.size() <= 20 &&
+             (!('details' in data) || (data.details is string && data.details.size() <= 2000)) &&
+             data.results is map &&
+             data.createdAt is timestamp;
+    }
+
+    function isValidWishlistItem() {
+      let data = request.resource.data;
+      return hasRequiredFields(['userId', 'product', 'savedAt']) &&
+             data.userId is string && data.userId.size() > 0 && data.userId.size() < 100 &&
+             data.product is map &&
+             data.savedAt is timestamp;
+    }
+
+    function isValidFeedback() {
+      let data = request.resource.data;
+      return hasRequiredFields(['userId', 'searchId', 'productName', 'helpful', 'createdAt']) &&
+             data.userId is string && data.userId.size() > 0 && data.userId.size() < 100 &&
+             data.searchId is string && data.searchId.size() > 0 && data.searchId.size() < 100 &&
+             data.productName is string && data.productName.size() > 0 && data.productName.size() < 200 &&
+             data.helpful is bool &&
+             data.createdAt is timestamp;
+    }
+
+    // ===============================================================
+    // Rules
+    // ===============================================================
+
+    match /users/{userId} {
+      allow read: if isOwner(userId);
+      allow write: if isOwner(userId);
+    }
+
+    match /searches/{searchId} {
+      allow read: if isOwner(resource.data.userId);
+      allow create: if isAuthenticated() && isValidSearch() && uidUnchanged();
+      allow update: if isOwner(resource.data.userId) && isValidSearch() && uidNotModified() && request.resource.data.createdAt == resource.data.createdAt;
+      allow delete: if isOwner(resource.data.userId);
+    }
+
+    match /wishlist/{wishlistId} {
+      allow read: if isOwner(resource.data.userId);
+      allow create: if isAuthenticated() && isValidWishlistItem() && uidUnchanged();
+      allow update: if isOwner(resource.data.userId) && isValidWishlistItem() && uidNotModified() && request.resource.data.savedAt == resource.data.savedAt;
+      allow delete: if isOwner(resource.data.userId);
+    }
+
+    match /feedback/{feedbackId} {
+      allow read: if isOwner(resource.data.userId);
+      allow create: if isAuthenticated() && isValidFeedback() && uidUnchanged();
+      allow update: if isOwner(resource.data.userId) && isValidFeedback() && uidNotModified() && request.resource.data.createdAt == resource.data.createdAt;
+      allow delete: if isOwner(resource.data.userId);
+    }
+  }
+}

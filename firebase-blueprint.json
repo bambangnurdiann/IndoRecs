@@ -1,0 +1,111 @@
+{
+  "entities": {
+    "Search": {
+      "title": "Search",
+      "description": "A user's search history entry.",
+      "type": "object",
+      "properties": {
+        "userId": {
+          "type": "string",
+          "description": "The UID of the user who performed the search."
+        },
+        "category": {
+          "type": "string",
+          "description": "The selected category."
+        },
+        "budget": {
+          "type": "string",
+          "description": "The selected budget."
+        },
+        "needs": {
+          "type": "array",
+          "description": "The selected needs."
+        },
+        "details": {
+          "type": "string",
+          "description": "Additional details provided by the user."
+        },
+        "results": {
+          "type": "object",
+          "description": "The recommendation results."
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "When the search was performed."
+        }
+      },
+      "required": ["userId", "category", "budget", "needs", "results", "createdAt"]
+    },
+    "WishlistItem": {
+      "title": "WishlistItem",
+      "description": "A product saved to the user's wishlist.",
+      "type": "object",
+      "properties": {
+        "userId": {
+          "type": "string",
+          "description": "The UID of the user."
+        },
+        "product": {
+          "type": "object",
+          "description": "The product details."
+        },
+        "savedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "When the product was saved."
+        }
+      },
+      "required": ["userId", "product", "savedAt"]
+    },
+    "Feedback": {
+      "title": "Feedback",
+      "description": "User feedback on a recommendation.",
+      "type": "object",
+      "properties": {
+        "userId": {
+          "type": "string",
+          "description": "The UID of the user."
+        },
+        "searchId": {
+          "type": "string",
+          "description": "The ID of the search this feedback relates to."
+        },
+        "productName": {
+          "type": "string",
+          "description": "The name of the product."
+        },
+        "helpful": {
+          "type": "boolean",
+          "description": "Whether the recommendation was helpful."
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "When the feedback was submitted."
+        }
+      },
+      "required": ["userId", "searchId", "productName", "helpful", "createdAt"]
+    }
+  },
+  "firestore": {
+    "/searches/{searchId}": {
+      "schema": {
+        "$ref": "#/entities/Search"
+      },
+      "description": "Stores user search history."
+    },
+    "/wishlist/{wishlistId}": {
+      "schema": {
+        "$ref": "#/entities/WishlistItem"
+      },
+      "description": "Stores user wishlisted products."
+    },
+    "/feedback/{feedbackId}": {
+      "schema": {
+        "$ref": "#/entities/Feedback"
+      },
+      "description": "Stores user feedback on recommendations."
+    }
+  }
+}
