@@ -8,6 +8,7 @@ import { db } from '../lib/firebase';
 import { collection, addDoc, serverTimestamp, query, where, orderBy, limit, getDocs, deleteDoc, doc } from 'firebase/firestore';
 import { AlertTriangle, ArrowRight, Loader2, X, Search, Sparkles, Megaphone } from 'lucide-react';
 import { AdPlacement } from '../components/AdPlacement';
+import { convertShopeeUrls } from '../lib/affiliate';
 
 // Initialize Gemini API lazily
 let ai: GoogleGenAI | null = null;
@@ -34,6 +35,7 @@ export default function Home({ activeTab, setActiveTab }: { activeTab: string, s
 
   const [wishlist, setWishlist] = useState<WishlistItem[]>([]);
   const [history, setHistory] = useState<SearchHistory[]>([]);
+  const [isConvertingAffiliate, setIsConvertingAffiliate] = useState(false);
 
   // Fetch History and Wishlist when user changes
   useEffect(() => {
@@ -127,7 +129,7 @@ Balas HANYA JSON dengan struktur:
       "best_for": "cocok untuk siapa",
       "not_for": "tidak cocok untuk siapa",
       "tokopedia_url": "https://www.tokopedia.com/search?st=product&q=KEYWORD",
-      "shopee_url": "https://shopee.co.id/search?keyword=KEYWORD",
+      "shopee_url": "https://shopee.co.id/product-name-i.SHOPID.ITEMID (link spesifik produk, BUKAN search link)",
       "whatsapp_text": "teks share whatsapp"
     }
   ],
@@ -149,6 +151,31 @@ Kembalikan tepat 3 produk. You are IndoRecs, an expert product recommendation as
       
       const parsedResult = JSON.parse(text) as SearchResult;
       setResult(parsedResult);
+
+      // Convert Shopee URLs to affiliate links
+      const shopeeUrls = parsedResult.products
+        .map((p) => p.shopee_url)
+        .filter((url) => url && url.includes('shopee.co.id'));
+
+      if (shopeeUrls.length > 0) {
+        setIsConvertingAffiliate(true);
+        try {
+          const affiliateLinks = await convertShopeeUrls(shopeeUrls);
+          const updatedProducts = parsedResult.products.map((product) => ({
+            ...product,
+            affiliate_url: affiliateLinks[product.shopee_url] || null,
+          }));
+          const updatedResult = { ...parsedResult, products: updatedProducts };
+          setResult(updatedResult);
+          // Use updated result for history save
+          parsedResult.products = updatedProducts;
+        } catch (error) {
+          console.error('Affiliate conversion failed:', error);
+          // Non-blocking: products still show with original Shopee URLs
+        } finally {
+          setIsConvertingAffiliate(false);
+        }
+      }
 
       // Save to history if logged in
       if (user) {
@@ -377,6 +404,7 @@ Always respond ONLY in valid JSON, no markdown, no backticks. Respond in Bahasa 
                           onWishlistToggle={handleWishlistToggle}
                           isWishlisted={wishlist.some(w => w.product.name === product.name)}
                           onFeedback={handleFeedback}
+                          isConvertingAffiliate={isConvertingAffiliate}
                         />
                         {/* Inline Ad after 2nd product */}
                         {idx === 1 && (

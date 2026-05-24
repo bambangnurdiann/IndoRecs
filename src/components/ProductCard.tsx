@@ -1,6 +1,6 @@
 import React from 'react';
 import { Product } from '../types';
-import { CheckCircle2, XCircle, ShoppingBag, Share2, Heart, AlertTriangle, ThumbsUp, ThumbsDown, Target } from 'lucide-react';
+import { CheckCircle2, XCircle, ShoppingBag, Share2, Heart, AlertTriangle, ThumbsUp, ThumbsDown, Target, Loader2 } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { useAuth } from '../contexts/AuthContext';
 
@@ -11,6 +11,7 @@ interface ProductCardProps {
   onWishlistToggle: (product: Product) => void | Promise<void>;
   isWishlisted: boolean;
   onFeedback: (productName: string, helpful: boolean) => void | Promise<void>;
+  isConvertingAffiliate?: boolean;
 }
 
 export const ProductCard: React.FC<ProductCardProps> = ({ 
@@ -19,7 +20,8 @@ export const ProductCard: React.FC<ProductCardProps> = ({
   isCompared, 
   onWishlistToggle, 
   isWishlisted,
-  onFeedback 
+  onFeedback,
+  isConvertingAffiliate = false,
 }) => {
   const { user } = useAuth();
 
@@ -148,14 +150,21 @@ export const ProductCard: React.FC<ProductCardProps> = ({
             <ShoppingBag className="w-4 h-4 mr-2" />
             Beli di Tokopedia
           </a>
-          <a 
-            href={product.shopee_url} 
-            target="_blank" 
-            rel="noopener noreferrer"
-            className="w-full flex items-center justify-center px-4 py-2.5 bg-white text-[#EE4D2D] text-sm font-bold rounded-lg border border-[#EE4D2D] hover:bg-orange-50 transition-colors"
-          >
-            Cek di Shopee
-          </a>
+          {isConvertingAffiliate ? (
+            <div className="w-full flex items-center justify-center px-4 py-2.5 bg-orange-50 text-[#EE4D2D] text-sm font-bold rounded-lg border border-[#EE4D2D]">
+              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+              Menyiapkan link...
+            </div>
+          ) : (
+            <a 
+              href={product.affiliate_url || product.shopee_url} 
+              target="_blank" 
+              rel="noopener noreferrer"
+              className="w-full flex items-center justify-center px-4 py-2.5 bg-white text-[#EE4D2D] text-sm font-bold rounded-lg border border-[#EE4D2D] hover:bg-orange-50 transition-colors"
+            >
+              Beli di Shopee
+            </a>
+          )}
 
           <div className="flex items-center justify-between pt-2">
             <label className="flex items-center space-x-2 cursor-pointer group">
