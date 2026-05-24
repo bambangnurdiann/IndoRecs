@@ -54,6 +54,6 @@ export async function convertToAffiliateLink(params: {
 
   const data = await response.json();
 
-  // Field yang paling sering dipakai
+  // Field yang paling sering dipakaiiii
   return data.affiliateLink || data.link || data.url || data.shortLink || landingUrl;
 }
