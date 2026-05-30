@@ -1,6 +1,6 @@
 import React from 'react';
 import { Product } from '../types';
-import { CheckCircle2, XCircle, ShoppingBag, Share2, Heart, AlertTriangle, ThumbsUp, ThumbsDown, Target, Loader2 } from 'lucide-react';
+import { CheckCircle2, XCircle, ShoppingBag, Share2, Heart, ThumbsUp, ThumbsDown } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { useAuth } from '../contexts/AuthContext';
 
@@ -11,17 +11,15 @@ interface ProductCardProps {
   onWishlistToggle: (product: Product) => void | Promise<void>;
   isWishlisted: boolean;
   onFeedback: (productName: string, helpful: boolean) => void | Promise<void>;
-  isConvertingAffiliate?: boolean;
 }
 
-export const ProductCard: React.FC<ProductCardProps> = ({ 
-  product, 
-  onCompareToggle, 
-  isCompared, 
-  onWishlistToggle, 
+export const ProductCard: React.FC<ProductCardProps> = ({
+  product,
+  onCompareToggle,
+  isCompared,
+  onWishlistToggle,
   isWishlisted,
   onFeedback,
-  isConvertingAffiliate = false,
 }) => {
   const { user } = useAuth();
 
@@ -49,7 +47,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({
               </span>
             )}
           </div>
-          <button 
+          <button
             onClick={() => {
               if (!user) {
                 alert("Login untuk simpan ke wishlist");
@@ -84,8 +82,8 @@ export const ProductCard: React.FC<ProductCardProps> = ({
             <span className="text-[12px] font-bold text-green-600">{product.match_score}%</span>
           </div>
           <div className="relative w-full bg-gray-100 rounded-full h-1.5 overflow-hidden">
-            <div 
-              className="absolute top-0 left-0 bg-green-500 h-full rounded-full transition-all duration-500" 
+            <div
+              className="absolute top-0 left-0 bg-green-500 h-full rounded-full transition-all duration-500"
               style={{ width: `${product.match_score}%` }}
             />
           </div>
@@ -141,35 +139,30 @@ export const ProductCard: React.FC<ProductCardProps> = ({
 
         {/* Actions */}
         <div className="space-y-2 pt-4">
-          <a 
-            href={product.tokopedia_url} 
-            target="_blank" 
+          <a
+            href={product.tokopedia_url}
+            target="_blank"
             rel="noopener noreferrer"
             className="w-full flex items-center justify-center px-4 py-2.5 bg-[#00AA5B] text-white text-sm font-bold rounded-lg hover:bg-[#008f4c] transition-colors shadow-sm"
           >
             <ShoppingBag className="w-4 h-4 mr-2" />
             Beli di Tokopedia
           </a>
-          {isConvertingAffiliate ? (
-            <div className="w-full flex items-center justify-center px-4 py-2.5 bg-orange-50 text-[#EE4D2D] text-sm font-bold rounded-lg border border-[#EE4D2D]">
-              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-              Menyiapkan link...
-            </div>
-          ) : (
-            <a 
-              href={product.affiliate_url || product.shopee_url} 
-              target="_blank" 
-              rel="noopener noreferrer"
-              className="w-full flex items-center justify-center px-4 py-2.5 bg-white text-[#EE4D2D] text-sm font-bold rounded-lg border border-[#EE4D2D] hover:bg-orange-50 transition-colors"
-            >
-              Beli di Shopee
-            </a>
-          )}
+
+          {/* Tombol Shopee — selalu pakai affiliate_url yang di-generate dari nama produk */}
+          <a
+            href={product.affiliate_url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="w-full flex items-center justify-center px-4 py-2.5 bg-white text-[#EE4D2D] text-sm font-bold rounded-lg border border-[#EE4D2D] hover:bg-orange-50 transition-colors"
+          >
+            Beli di Shopee
+          </a>
 
           <div className="flex items-center justify-between pt-2">
             <label className="flex items-center space-x-2 cursor-pointer group">
-              <input 
-                type="checkbox" 
+              <input
+                type="checkbox"
                 checked={isCompared}
                 onChange={(e) => onCompareToggle(product, e.target.checked)}
                 className="h-4 w-4 rounded border-gray-300 text-green-600 focus:ring-green-500 cursor-pointer"
@@ -178,7 +171,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({
             </label>
 
             <div className="flex items-center gap-1">
-              <button onClick={() => handleShare('wa')} className="p-1.5 text-gray-400 hover:text-green-600 transition-colors" title="Share">
+              <button onClick={() => handleShare('wa')} className="p-1.5 text-gray-400 hover:text-green-600 transition-colors" title="Share ke WhatsApp">
                 <Share2 className="w-3.5 h-3.5" />
               </button>
               <button onClick={() => onFeedback(product.name, true)} className="p-1.5 text-gray-400 hover:text-blue-600 transition-colors">
@@ -193,4 +186,4 @@ export const ProductCard: React.FC<ProductCardProps> = ({
       </div>
     </div>
   );
-}
+};
