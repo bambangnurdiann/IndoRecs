@@ -6,9 +6,9 @@ import { SearchResult, Product, SearchHistory, WishlistItem } from '../types';
 import { useAuth } from '../contexts/AuthContext';
 import { db } from '../lib/firebase';
 import { collection, addDoc, serverTimestamp, query, where, orderBy, limit, getDocs, deleteDoc, doc } from 'firebase/firestore';
-import { AlertTriangle, ArrowRight, Loader2, X, Search, Sparkles, Megaphone } from 'lucide-react';
+import { AlertTriangle, ArrowRight, Loader2, X, Search, Sparkles } from 'lucide-react';
 import { AdPlacement } from '../components/AdPlacement';
-import { convertShopeeUrls } from '../lib/affiliate';
+import { generateShopeeAffiliateLink } from '../lib/affiliate';
 
 // Initialize Gemini API lazily
 let ai: GoogleGenAI | null = null;
@@ -22,12 +22,12 @@ try {
 
 export default function Home({ activeTab, setActiveTab }: { activeTab: string, setActiveTab: (tab: any) => void }) {
   const { user } = useAuth();
-  
+
   const [isLoading, setIsLoading] = useState(false);
   const [loadingText, setLoadingText] = useState("Mencari produk terbaik...");
   const [result, setResult] = useState<SearchResult | null>(null);
   const [currentSearchId, setCurrentSearchId] = useState<string | null>(null);
-  
+
   const [compareList, setCompareList] = useState<Product[]>([]);
   const [showCompareModal, setShowCompareModal] = useState(false);
   const [compareResult, setCompareResult] = useState<any>(null);
@@ -35,7 +35,6 @@ export default function Home({ activeTab, setActiveTab }: { activeTab: string, s
 
   const [wishlist, setWishlist] = useState<WishlistItem[]>([]);
   const [history, setHistory] = useState<SearchHistory[]>([]);
-  const [isConvertingAffiliate, setIsConvertingAffiliate] = useState(false);
 
   // Fetch History and Wishlist when user changes
   useEffect(() => {
@@ -99,7 +98,7 @@ export default function Home({ activeTab, setActiveTab }: { activeTab: string, s
     setIsLoading(true);
     setResult(null);
     setCompareList([]);
-    
+
     try {
       const prompt = `Carikan rekomendasi produk:
 Kategori: ${formData.category} - ${formData.subcategory}
@@ -129,7 +128,7 @@ Balas HANYA JSON dengan struktur:
       "best_for": "cocok untuk siapa",
       "not_for": "tidak cocok untuk siapa",
       "tokopedia_url": "https://www.tokopedia.com/search?st=product&q=KEYWORD",
-      "shopee_url": "https://shopee.co.id/product-name-i.SHOPID.ITEMID (link spesifik produk, BUKAN search link)",
+      "shopee_url": "https://shopee.co.id/search?keyword=KEYWORD",
       "whatsapp_text": "teks share whatsapp"
     }
   ],
@@ -139,7 +138,7 @@ Balas HANYA JSON dengan struktur:
 Kembalikan tepat 3 produk. You are IndoRecs, an expert product recommendation assistant for Indonesian consumers. Always respond ONLY in valid JSON, no markdown, no backticks. All products must be real and available in Indonesia. Respond in Bahasa Indonesia.`;
 
       const response = await ai.models.generateContent({
-        model: 'gemini-3-flash-preview',
+        model: 'gemini-2.0-flash',
         contents: prompt,
         config: {
           responseMimeType: "application/json",
@@ -148,34 +147,16 @@ Kembalikan tepat 3 produk. You are IndoRecs, an expert product recommendation as
 
       const text = response.text;
       if (!text) throw new Error("Empty response");
-      
+
       const parsedResult = JSON.parse(text) as SearchResult;
+
+      // Generate affiliate links secara synchronous — tidak perlu API call!
+      parsedResult.products = parsedResult.products.map((p) => ({
+        ...p,
+        affiliate_url: generateShopeeAffiliateLink(p.name),
+      }));
+
       setResult(parsedResult);
-
-      // Convert Shopee URLs to affiliate links
-      const shopeeUrls = parsedResult.products
-        .map((p) => p.shopee_url)
-        .filter((url) => url && url.includes('shopee.co.id'));
-
-      if (shopeeUrls.length > 0) {
-        setIsConvertingAffiliate(true);
-        try {
-          const affiliateLinks = await convertShopeeUrls(shopeeUrls);
-          const updatedProducts = parsedResult.products.map((product) => ({
-            ...product,
-            affiliate_url: affiliateLinks[product.shopee_url] || null,
-          }));
-          const updatedResult = { ...parsedResult, products: updatedProducts };
-          setResult(updatedResult);
-          // Use updated result for history save
-          parsedResult.products = updatedProducts;
-        } catch (error) {
-          console.error('Affiliate conversion failed:', error);
-          // Non-blocking: products still show with original Shopee URLs
-        } finally {
-          setIsConvertingAffiliate(false);
-        }
-      }
 
       // Save to history if logged in
       if (user) {
@@ -215,7 +196,7 @@ Kembalikan tepat 3 produk. You are IndoRecs, an expert product recommendation as
     if (!ai || compareList.length < 2) return;
     setIsComparing(true);
     setShowCompareModal(true);
-    
+
     try {
       const prompt = `Bandingkan produk berikut:
 Produk: ${compareList.map(p => p.name).join(', ')}
@@ -245,7 +226,7 @@ Balas HANYA JSON:
 Always respond ONLY in valid JSON, no markdown, no backticks. Respond in Bahasa Indonesia.`;
 
       const response = await ai.models.generateContent({
-        model: 'gemini-3-flash-preview',
+        model: 'gemini-2.0-flash',
         contents: prompt,
         config: { responseMimeType: "application/json" }
       });
@@ -265,7 +246,7 @@ Always respond ONLY in valid JSON, no markdown, no backticks. Respond in Bahasa 
   const handleWishlistToggle = async (product: Product) => {
     if (!user) return;
     const existing = wishlist.find(w => w.product.name === product.name);
-    
+
     if (existing) {
       await deleteDoc(doc(db, 'wishlist', existing.id));
       setWishlist(wishlist.filter(w => w.id !== existing.id));
@@ -298,6 +279,14 @@ Always respond ONLY in valid JSON, no markdown, no backticks. Respond in Bahasa 
     }
   };
 
+  // Pastikan produk dari history/wishlist juga punya affiliate_url
+  const ensureAffiliateUrl = (product: Product): Product => {
+    if (!product.affiliate_url) {
+      return { ...product, affiliate_url: generateShopeeAffiliateLink(product.name) };
+    }
+    return product;
+  };
+
   const renderSkeleton = () => (
     <div className="space-y-8">
       <div className="text-center py-8">
@@ -327,6 +316,7 @@ Always respond ONLY in valid JSON, no markdown, no backticks. Respond in Bahasa 
       <main className="max-w-[1440px] mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Top Banner Ad */}
         <AdPlacement placement="top_banner" className="mb-8 h-24 md:h-32" />
+
         {!user && activeTab !== 'search' && (
           <div className="bg-yellow-50 border-l-4 border-yellow-400 p-4 mb-8 rounded-r-md">
             <div className="flex">
@@ -335,7 +325,7 @@ Always respond ONLY in valid JSON, no markdown, no backticks. Respond in Bahasa 
               </div>
               <div className="ml-3">
                 <p className="text-sm text-yellow-700">
-                  Anda belum login. <button onClick={() => {}} className="font-medium underline hover:text-yellow-600">Login sekarang</button> untuk menyimpan riwayat dan wishlist.
+                  Anda belum login. Login sekarang untuk menyimpan riwayat dan wishlist.
                 </p>
               </div>
             </div>
@@ -346,11 +336,10 @@ Always respond ONLY in valid JSON, no markdown, no backticks. Respond in Bahasa 
           <div className="flex flex-col lg:flex-row gap-8 items-start">
             <aside className="w-full lg:w-[300px] lg:sticky lg:top-24 flex-shrink-0 space-y-6">
               <SearchForm onSubmit={handleSearch} isLoading={isLoading} />
-              
               {/* Sidebar Ad */}
               <AdPlacement placement="right_sidebar" className="min-h-[250px]" />
             </aside>
-            
+
             <div className="flex-1 min-w-0">
               {isLoading ? (
                 renderSkeleton()
@@ -358,13 +347,14 @@ Always respond ONLY in valid JSON, no markdown, no backticks. Respond in Bahasa 
                 <div className="space-y-8">
                   {/* Sponsored Product Ad */}
                   <AdPlacement placement="sponsored" className="mb-8" />
+
                   {result.budget_warning && (
                     <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-4 flex items-start">
                       <AlertTriangle className="w-5 h-5 text-yellow-600 mt-0.5 mr-3 flex-shrink-0" />
                       <p className="text-sm text-yellow-800">{result.budget_warning_message}</p>
                     </div>
                   )}
-                  
+
                   <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
                     <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
                       <div>
@@ -397,14 +387,13 @@ Always respond ONLY in valid JSON, no markdown, no backticks. Respond in Bahasa 
                   <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
                     {result.products.map((product, idx) => (
                       <React.Fragment key={idx}>
-                        <ProductCard 
-                          product={product} 
+                        <ProductCard
+                          product={product}
                           onCompareToggle={handleCompareToggle}
                           isCompared={compareList.some(p => p.name === product.name)}
                           onWishlistToggle={handleWishlistToggle}
                           isWishlisted={wishlist.some(w => w.product.name === product.name)}
                           onFeedback={handleFeedback}
-                          isConvertingAffiliate={isConvertingAffiliate}
                         />
                         {/* Inline Ad after 2nd product */}
                         {idx === 1 && (
@@ -458,7 +447,11 @@ Always respond ONLY in valid JSON, no markdown, no backticks. Respond in Bahasa 
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 {history.map(item => (
-                  <div key={item.id} className="bg-white p-5 rounded-xl shadow-sm border border-gray-100 cursor-pointer hover:border-green-300 transition-colors" onClick={() => { setResult(item.results); setActiveTab('search'); }}>
+                  <div
+                    key={item.id}
+                    className="bg-white p-5 rounded-xl shadow-sm border border-gray-100 cursor-pointer hover:border-green-300 transition-colors"
+                    onClick={() => { setResult(item.results); setActiveTab('search'); }}
+                  >
                     <div className="flex justify-between items-start mb-2">
                       <span className="text-xs font-semibold text-green-600 bg-green-50 px-2 py-1 rounded">{item.category}</span>
                       <span className="text-xs text-gray-400">{new Date(item.createdAt?.toDate?.() || Date.now()).toLocaleDateString('id-ID')}</span>
@@ -481,9 +474,9 @@ Always respond ONLY in valid JSON, no markdown, no backticks. Respond in Bahasa 
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {wishlist.map(item => (
-                  <ProductCard 
-                    key={item.id} 
-                    product={item.product} 
+                  <ProductCard
+                    key={item.id}
+                    product={ensureAffiliateUrl(item.product)}
                     onCompareToggle={handleCompareToggle}
                     isCompared={compareList.some(p => p.name === item.product.name)}
                     onWishlistToggle={handleWishlistToggle}
@@ -515,13 +508,13 @@ Always respond ONLY in valid JSON, no markdown, no backticks. Respond in Bahasa 
               </div>
             </div>
             <div className="flex items-center gap-2 w-full sm:w-auto">
-              <button 
+              <button
                 onClick={() => setCompareList([])}
                 className="flex-1 sm:flex-none px-4 py-2.5 text-xs font-bold text-gray-500 hover:text-gray-900 transition-colors"
               >
                 Batal
               </button>
-              <button 
+              <button
                 onClick={handleCompare}
                 disabled={compareList.length < 2}
                 className="flex-[2] sm:flex-none px-6 py-2.5 bg-green-600 text-white text-xs font-black uppercase tracking-widest rounded-xl hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center shadow-lg shadow-green-100 transition-all active:scale-95"
@@ -543,7 +536,7 @@ Always respond ONLY in valid JSON, no markdown, no backticks. Respond in Bahasa 
                 <X className="w-5 h-5" />
               </button>
             </div>
-            
+
             <div className="p-6 overflow-y-auto">
               {isComparing ? (
                 <div className="text-center py-12">
