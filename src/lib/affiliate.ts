@@ -10,7 +10,7 @@ const AFFILIATE_ID = '11146330000';
 /**
  * Generate affiliate link Shopee yang langsung mengarah ke halaman
  * pencarian produk berdasarkan nama produk.
- *
+ 
  * Contoh output:
  * https://atid.me/002bc7002poy?url=https%3A%2F%2Fshopee.co.id%2Fsearch%3Fkeyword%3Dinfinix%2Bhot%2B30s%26affiliate_id%3D11146330000...
  */
