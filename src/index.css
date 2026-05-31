@@ -10,55 +10,16 @@
 }
 
 @layer components {
-  /* Custom range slider */
   input[type="range"] {
     @apply appearance-none w-full h-2 rounded-full bg-gray-200 outline-none;
   }
   input[type="range"]::-webkit-slider-thumb {
-    @apply appearance-none w-5 h-5 rounded-full bg-green-600 cursor-pointer shadow-md border-2 border-white;
+    @apply appearance-none w-5 h-5 rounded-full bg-green-600 cursor-pointer shadow-sm border-2 border-white;
   }
   input[type="range"]::-moz-range-thumb {
-    @apply w-5 h-5 rounded-full bg-green-600 cursor-pointer shadow-md border-2 border-white;
+    @apply w-5 h-5 rounded-full bg-green-600 cursor-pointer shadow-sm border-2 border-white;
   }
 
-  .dark body {
-  background-color: #030712;
-  }
-
-  /* Hide scrollbar utility */
-  .no-scrollbar::-webkit-scrollbar {
-    display: none;
-  }
-  .no-scrollbar {
-    -ms-overflow-style: none;
-    scrollbar-width: none;
-  }
-
-  /* Radial progress */
-  .radial-progress {
-    --size: 52px;
-    --thickness: 4px;
-    width: var(--size);
-    height: var(--size);
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    background: conic-gradient(
-      var(--progress-color, #22c55e) calc(var(--progress, 0) * 1%),
-      #e5e7eb calc(var(--progress, 0) * 1%)
-    );
-    position: relative;
-  }
-  .radial-progress::before {
-    content: '';
-    position: absolute;
-    inset: var(--thickness);
-    border-radius: 50%;
-    background: white;
-  }
-  .radial-progress > span {
-    position: relative;
-    z-index: 1;
-  }
+  .no-scrollbar::-webkit-scrollbar { display: none; }
+  .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
 }
