@@ -63,7 +63,7 @@ export function AdPlacement({ placement, className = "" }: AdPlacementProps) {
   const isSponsored = placement === 'sponsored';
 
   return (
-    <div className={`relative group overflow-hidden rounded-2xl border border-gray-100 bg-[#f9f9f9] ${className}`}>
+    <div className={`relative group overflow-hidden rounded-2xl border border-gray-100 dark:border-gray-700 bg-[#f9f9f9] dark:bg-gray-800 ${className}`}>
       <a 
         href={currentAd.target_url} 
         target="_blank" 

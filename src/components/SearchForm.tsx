@@ -41,39 +41,20 @@ export function SearchForm({ onSubmit, isLoading }: SearchFormProps) {
       alert('Mohon lengkapi kategori, subkategori, dan kebutuhan.');
       return;
     }
-    onSubmit({
-      category,
-      subcategory,
-      budget: `Rp ${budget.toLocaleString('id-ID')}`,
-      needs: selectedNeeds,
-      detail
-    });
+    onSubmit({ category, subcategory, budget: `Rp ${budget.toLocaleString('id-ID')}`, needs: selectedNeeds, detail });
   };
 
   const toggleNeed = (need: string) => {
-    setSelectedNeeds(prev =>
-      prev.includes(need) ? prev.filter(n => n !== need) : [...prev, need]
-    );
+    setSelectedNeeds(prev => prev.includes(need) ? prev.filter(n => n !== need) : [...prev, need]);
   };
 
   return (
     <form onSubmit={handleSubmit} className="w-full">
-      {/* Horizontal Category Tabs */}
-      <div className="bg-white border-b border-gray-100 shadow-sm">
+      <div className="bg-white dark:bg-gray-900 border-b border-gray-100 dark:border-gray-700 shadow-sm">
         <div className="max-w-[1440px] mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar py-3">
             {CATEGORIES.map(cat => (
-              <button
-                key={cat.id}
-                type="button"
-                onClick={() => { setCategory(cat.id); setSubcategory(''); }}
-                className={cn(
-                  "flex items-center gap-2 px-4 py-2.5 rounded-xl whitespace-nowrap transition-all duration-200 text-sm font-semibold",
-                  category === cat.id
-                    ? "bg-green-600 text-white shadow-md shadow-green-200"
-                    : "bg-gray-50 text-gray-600 hover:bg-green-50 hover:text-green-700"
-                )}
-              >
+              <button key={cat.id} type="button" onClick={() => { setCategory(cat.id); setSubcategory(''); }} className={cn("flex items-center gap-2 px-4 py-2.5 rounded-xl whitespace-nowrap transition-all duration-200 text-sm font-semibold", category === cat.id ? "bg-green-600 dark:bg-green-500 text-white shadow-md shadow-green-200 dark:shadow-green-900/30" : "bg-gray-50 dark:bg-gray-800 text-gray-600 dark:text-gray-300 hover:bg-green-50 dark:hover:bg-green-900/30 hover:text-green-700 dark:hover:text-green-400")}>
                 <cat.icon className="h-4 w-4" />
                 <span>{cat.id}</span>
               </button>
@@ -82,17 +63,7 @@ export function SearchForm({ onSubmit, isLoading }: SearchFormProps) {
           {activeCategory && (
             <div className="flex items-center gap-2 overflow-x-auto no-scrollbar pb-3">
               {activeCategory.sub.map(sub => (
-                <button
-                  key={sub}
-                  type="button"
-                  onClick={() => setSubcategory(sub)}
-                  className={cn(
-                    "px-3.5 py-1.5 rounded-lg text-xs font-semibold border whitespace-nowrap transition-all duration-200",
-                    subcategory === sub
-                      ? "bg-green-600 border-green-600 text-white shadow-sm"
-                      : "bg-white border-gray-200 text-gray-600 hover:border-green-400 hover:text-green-600"
-                  )}
-                >
+                <button key={sub} type="button" onClick={() => setSubcategory(sub)} className={cn("px-3.5 py-1.5 rounded-lg text-xs font-semibold border whitespace-nowrap transition-all duration-200", subcategory === sub ? "bg-green-600 dark:bg-green-500 border-green-600 dark:border-green-500 text-white shadow-sm" : "bg-white dark:bg-gray-900 border-gray-200 dark:border-gray-600 text-gray-600 dark:text-gray-300 hover:border-green-400 dark:hover:border-green-500 hover:text-green-600 dark:hover:text-green-400")}>
                   {sub}
                 </button>
               ))}
@@ -101,53 +72,40 @@ export function SearchForm({ onSubmit, isLoading }: SearchFormProps) {
         </div>
       </div>
 
-      {/* Collapsible Advanced Filters */}
-      <div className="bg-white border-b border-gray-100">
+      <div className="bg-white dark:bg-gray-900 border-b border-gray-100 dark:border-gray-700">
         <div className="max-w-[1440px] mx-auto px-4 sm:px-6 lg:px-8">
-          <button
-            type="button"
-            onClick={() => setIsFilterOpen(!isFilterOpen)}
-            className="flex items-center gap-2 py-3 text-sm font-semibold text-gray-600 hover:text-green-600 transition-colors w-full"
-          >
+          <button type="button" onClick={() => setIsFilterOpen(!isFilterOpen)} className="flex items-center gap-2 py-3 text-sm font-semibold text-gray-600 dark:text-gray-300 hover:text-green-600 dark:hover:text-green-400 transition-colors w-full">
             <SlidersHorizontal className="w-4 h-4" />
             <span>Filter Lanjutan</span>
-            {selectedNeeds.length > 0 && (
-              <span className="px-2 py-0.5 bg-green-100 text-green-700 text-xs font-bold rounded-full">
-                {selectedNeeds.length}
-              </span>
-            )}
+            {selectedNeeds.length > 0 && (<span className="px-2 py-0.5 bg-green-100 dark:bg-green-900/40 text-green-700 dark:text-green-400 text-xs font-bold rounded-full">{selectedNeeds.length}</span>)}
             {isFilterOpen ? <ChevronUp className="w-4 h-4 ml-auto" /> : <ChevronDown className="w-4 h-4 ml-auto" />}
           </button>
           {isFilterOpen && (
             <div className="pb-5">
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6 p-5 bg-gray-50/80 rounded-2xl border border-gray-100">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6 p-5 bg-gray-50/80 dark:bg-gray-800/80 rounded-2xl border border-gray-100 dark:border-gray-700">
                 <div className="space-y-3">
                   <div className="flex justify-between items-center">
-                    <label className="text-xs font-bold text-gray-500 uppercase tracking-wider">Budget Maksimal</label>
-                    <span className="text-sm font-bold text-green-600">Rp {budget.toLocaleString('id-ID')}</span>
+                    <label className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Budget Maksimal</label>
+                    <span className="text-sm font-bold text-green-600 dark:text-green-400">Rp {budget.toLocaleString('id-ID')}</span>
                   </div>
                   <input type="range" min="100000" max="30000000" step="100000" value={budget} onChange={(e) => setBudget(Number(e.target.value))} className="w-full" />
                   <div className="flex flex-wrap gap-1.5">
                     {BUDGET_PRESETS.map(preset => (
-                      <button key={preset.value} type="button" onClick={() => setBudget(preset.value)} className={cn("px-2.5 py-1 text-[11px] font-bold rounded-lg border transition-all", budget === preset.value ? "bg-green-600 border-green-600 text-white" : "bg-white border-gray-200 text-gray-500 hover:border-green-400")}>
-                        {preset.label}
-                      </button>
+                      <button key={preset.value} type="button" onClick={() => setBudget(preset.value)} className={cn("px-2.5 py-1 text-[11px] font-bold rounded-lg border transition-all", budget === preset.value ? "bg-green-600 dark:bg-green-500 border-green-600 dark:border-green-500 text-white" : "bg-white dark:bg-gray-900 border-gray-200 dark:border-gray-600 text-gray-500 dark:text-gray-400 hover:border-green-400")}>{preset.label}</button>
                     ))}
                   </div>
                 </div>
                 <div className="space-y-3">
-                  <label className="text-xs font-bold text-gray-500 uppercase tracking-wider">Kebutuhan</label>
+                  <label className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Kebutuhan</label>
                   <div className="flex flex-wrap gap-2">
                     {NEEDS.map(need => (
-                      <button key={need} type="button" onClick={() => toggleNeed(need)} className={cn("px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all duration-200", selectedNeeds.includes(need) ? "bg-green-50 border-green-500 text-green-700 shadow-sm" : "bg-white border-gray-200 text-gray-500 hover:border-green-300 hover:text-green-600")}>
-                        {need}
-                      </button>
+                      <button key={need} type="button" onClick={() => toggleNeed(need)} className={cn("px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all duration-200", selectedNeeds.includes(need) ? "bg-green-50 dark:bg-green-900/30 border-green-500 dark:border-green-600 text-green-700 dark:text-green-400 shadow-sm" : "bg-white dark:bg-gray-900 border-gray-200 dark:border-gray-600 text-gray-500 dark:text-gray-400 hover:border-green-300 hover:text-green-600 dark:hover:text-green-400")}>{need}</button>
                     ))}
                   </div>
                 </div>
                 <div className="space-y-3">
-                  <label className="text-xs font-bold text-gray-500 uppercase tracking-wider">Detail Tambahan</label>
-                  <textarea value={detail} onChange={(e) => setDetail(e.target.value)} placeholder="Contoh: Harus warna hitam, baterai awet..." className="w-full p-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all resize-none h-[88px] text-sm bg-white placeholder:text-gray-400" />
+                  <label className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Detail Tambahan</label>
+                  <textarea value={detail} onChange={(e) => setDetail(e.target.value)} placeholder="Contoh: Harus warna hitam, baterai awet..." className="w-full p-3 border border-gray-200 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all resize-none h-[88px] text-sm bg-white dark:bg-gray-900 text-gray-900 dark:text-white placeholder:text-gray-400 dark:placeholder:text-gray-500" />
                 </div>
               </div>
             </div>
@@ -155,14 +113,9 @@ export function SearchForm({ onSubmit, isLoading }: SearchFormProps) {
         </div>
       </div>
 
-      {/* Sticky Search Button */}
       <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-40">
-        <button type="submit" disabled={isLoading || !category || !subcategory || selectedNeeds.length === 0} className={cn("flex items-center justify-center px-8 py-3.5 rounded-2xl text-sm font-bold text-white shadow-2xl transition-all duration-300 active:scale-95", isLoading || !category || !subcategory || selectedNeeds.length === 0 ? "bg-gray-300 cursor-not-allowed shadow-gray-200" : "bg-green-600 hover:bg-green-700 shadow-green-300/50 hover:shadow-green-400/60")}>
-          {isLoading ? (
-            <span className="flex items-center"><Loader2 className="animate-spin mr-2 h-4 w-4" />Memproses...</span>
-          ) : (
-            <span className="flex items-center"><Sparkles className="mr-2 h-4 w-4" />Cari Rekomendasi</span>
-          )}
+        <button type="submit" disabled={isLoading || !category || !subcategory || selectedNeeds.length === 0} className={cn("flex items-center justify-center px-8 py-3.5 rounded-2xl text-sm font-bold text-white shadow-2xl transition-all duration-300 active:scale-95", isLoading || !category || !subcategory || selectedNeeds.length === 0 ? "bg-gray-300 dark:bg-gray-700 cursor-not-allowed shadow-gray-200 dark:shadow-gray-900/30" : "bg-green-600 dark:bg-green-500 hover:bg-green-700 dark:hover:bg-green-600 shadow-green-300/50 dark:shadow-green-900/50 hover:shadow-green-400/60")}>
+          {isLoading ? (<span className="flex items-center"><Loader2 className="animate-spin mr-2 h-4 w-4" />Memproses...</span>) : (<span className="flex items-center"><Sparkles className="mr-2 h-4 w-4" />Cari Rekomendasi</span>)}
         </button>
       </div>
     </form>
