@@ -1,42 +1,44 @@
-import React, { useState } from 'react';
-import { Monitor, Shirt, Home, Sparkles, Dumbbell, Loader2, ChevronDown, ChevronUp, SlidersHorizontal } from 'lucide-react';
+import React, { useState, useRef } from 'react';
+import { Monitor, Shirt, Home, Sparkles, Dumbbell, Loader2, ChevronDown, ChevronUp, SlidersHorizontal, Image, X } from 'lucide-react';
 import { cn } from '../lib/utils';
 
 const CATEGORIES = [
-  { id: 'Elektronik', icon: Monitor, sub: ['Smartphone', 'Laptop', 'Tablet', 'TWS/Earphone', 'Smartwatch', 'Kamera', 'TV'] },
-  { id: 'Fashion', icon: Shirt, sub: ['Sepatu', 'Tas', 'Jaket', 'Jam Tangan', 'Baju Kasual'] },
-  { id: 'Peralatan Rumah', icon: Home, sub: ['Vacuum Cleaner', 'Air Purifier', 'Blender', 'Rice Cooker', 'Dispenser'] },
-  { id: 'Kecantikan', icon: Sparkles, sub: ['Skincare', 'Makeup', 'Parfum', 'Haircare'] },
-  { id: 'Olahraga', icon: Dumbbell, sub: ['Sepatu Lari', 'Sepeda', 'Alat Gym', 'Outdoor Gear'] },
+  { id: 'Elektronik', icon: Monitor, sub: ['Smartphone','Laptop','Tablet','TWS/Earphone','Smartwatch','Kamera','TV'] },
+  { id: 'Fashion', icon: Shirt, sub: ['Sepatu','Tas','Jaket','Jam Tangan','Baju Kasual'] },
+  { id: 'Peralatan Rumah', icon: Home, sub: ['Vacuum Cleaner','Air Purifier','Blender','Rice Cooker','Dispenser'] },
+  { id: 'Kecantikan', icon: Sparkles, sub: ['Skincare','Makeup','Parfum','Haircare'] },
+  { id: 'Olahraga', icon: Dumbbell, sub: ['Sepatu Lari','Sepeda','Alat Gym','Outdoor Gear'] },
 ];
-
 const BUDGET_PRESETS = [
-  { label: 'Rp 500rb', value: 500000 },
-  { label: 'Rp 1jt', value: 1000000 },
-  { label: 'Rp 3jt', value: 3000000 },
-  { label: 'Rp 5jt', value: 5000000 },
-  { label: 'Rp 10jt', value: 10000000 },
+  { label:'Rp 500rb',value:500000},{label:'Rp 1jt',value:1000000},{label:'Rp 3jt',value:3000000},{label:'Rp 5jt',value:5000000},{label:'Rp 10jt',value:10000000},
 ];
-
-const NEEDS = ['Gaming', 'Kerja', 'Sekolah', 'Traveling', 'Sehari-hari', 'Konten Kreator'];
+const NEEDS = ['Gaming','Kerja','Sekolah','Traveling','Sehari-hari','Konten Kreator'];
 
 interface SearchFormProps {
-  onSubmit: (data: { category: string; subcategory: string; budget: string; needs: string[]; detail: string }) => void;
+  onSubmit: (data: { category:string;subcategory:string;budget:string;needs:string[];detail:string }) => void;
   isLoading: boolean;
+  onVisualSearch?: (imageBase64: string, mimeType: string) => void;
 }
 
-export function SearchForm({ onSubmit, isLoading }: SearchFormProps) {
+export function SearchForm({ onSubmit, isLoading, onVisualSearch }: SearchFormProps) {
   const [category, setCategory] = useState('');
   const [subcategory, setSubcategory] = useState('');
   const [budget, setBudget] = useState<number>(3000000);
   const [selectedNeeds, setSelectedNeeds] = useState<string[]>([]);
   const [detail, setDetail] = useState('');
   const [isFilterOpen, setIsFilterOpen] = useState(true);
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [imageBase64, setImageBase64] = useState<string | null>(null);
+  const fileRef = useRef<HTMLInputElement>(null);
 
   const activeCategory = CATEGORIES.find(c => c.id === category);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    if (imageBase64 && onVisualSearch) {
+      onVisualSearch(imageBase64, 'image/jpeg');
+      return;
+    }
     if (!category || !subcategory || selectedNeeds.length === 0) {
       alert('Mohon lengkapi kategori, subkategori, dan kebutuhan.');
       return;
@@ -48,24 +50,48 @@ export function SearchForm({ onSubmit, isLoading }: SearchFormProps) {
     setSelectedNeeds(prev => prev.includes(need) ? prev.filter(n => n !== need) : [...prev, need]);
   };
 
+  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.size > 4 * 1024 * 1024) { alert('Ukuran gambar maksimal 4MB'); return; }
+    const reader = new FileReader();
+    reader.onload = () => {
+      const result = reader.result as string;
+      setImagePreview(result);
+      setImageBase64(result.split(',')[1]);
+    };
+    reader.readAsDataURL(file);
+  };
+
   return (
     <form onSubmit={handleSubmit} className="w-full">
       <div className="bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700">
         <div className="max-w-[1440px] mx-auto px-4 sm:px-6 lg:px-8">
+          {/* Image upload row */}
+          <div className="py-3 flex items-center gap-3">
+            <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={handleImageUpload} />
+            <button type="button" onClick={() => fileRef.current?.click()} className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors">
+              <Image className="w-4 h-4" /> Cari dengan Gambar
+            </button>
+            {imagePreview && (
+              <div className="relative">
+                <img src={imagePreview} alt="Preview" className="h-10 w-10 rounded-lg object-cover border border-gray-200 dark:border-gray-600" />
+                <button type="button" onClick={() => { setImagePreview(null); setImageBase64(null); }} className="absolute -top-1.5 -right-1.5 p-0.5 bg-white dark:bg-gray-900 rounded-full shadow-sm border border-gray-200 dark:border-gray-600"><X className="w-3 h-3 text-gray-400" /></button>
+              </div>
+            )}
+          </div>
+
           <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar py-3">
             {CATEGORIES.map(cat => (
-              <button key={cat.id} type="button" onClick={() => { setCategory(cat.id); setSubcategory(''); }} className={cn("flex items-center gap-2 px-4 py-2 rounded-lg whitespace-nowrap transition-colors text-sm font-medium", category === cat.id ? "bg-green-600 text-white" : "bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700")}>
-                <cat.icon className="h-4 w-4" />
-                <span>{cat.id}</span>
+              <button key={cat.id} type="button" onClick={() => { setCategory(cat.id); setSubcategory(''); }} className={cn("flex items-center gap-2 px-4 py-2 rounded-lg whitespace-nowrap transition-colors text-sm font-medium", category===cat.id ? "bg-green-600 text-white" : "bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700")}>
+                <cat.icon className="h-4 w-4" /><span>{cat.id}</span>
               </button>
             ))}
           </div>
           {activeCategory && (
             <div className="flex items-center gap-2 overflow-x-auto no-scrollbar pb-3">
               {activeCategory.sub.map(sub => (
-                <button key={sub} type="button" onClick={() => setSubcategory(sub)} className={cn("px-3 py-1.5 rounded-lg text-sm font-medium border whitespace-nowrap transition-colors", subcategory === sub ? "bg-green-600 border-green-600 text-white" : "bg-white dark:bg-gray-900 border-gray-200 dark:border-gray-600 text-gray-600 dark:text-gray-300 hover:border-gray-400 dark:hover:border-gray-500")}>
-                  {sub}
-                </button>
+                <button key={sub} type="button" onClick={() => setSubcategory(sub)} className={cn("px-3 py-1.5 rounded-lg text-sm font-medium border whitespace-nowrap transition-colors", subcategory===sub ? "bg-green-600 border-green-600 text-white" : "bg-white dark:bg-gray-900 border-gray-200 dark:border-gray-600 text-gray-600 dark:text-gray-300 hover:border-gray-400")}>{sub}</button>
               ))}
             </div>
           )}
@@ -75,37 +101,25 @@ export function SearchForm({ onSubmit, isLoading }: SearchFormProps) {
       <div className="bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700">
         <div className="max-w-[1440px] mx-auto px-4 sm:px-6 lg:px-8">
           <button type="button" onClick={() => setIsFilterOpen(!isFilterOpen)} className="flex items-center gap-2 py-3 text-sm font-medium text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 transition-colors w-full">
-            <SlidersHorizontal className="w-4 h-4" />
-            <span>Filter</span>
-            {selectedNeeds.length > 0 && (<span className="px-1.5 py-0.5 bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400 text-xs rounded-full">{selectedNeeds.length}</span>)}
+            <SlidersHorizontal className="w-4 h-4" /><span>Filter</span>
+            {selectedNeeds.length>0 && <span className="px-1.5 py-0.5 bg-gray-100 dark:bg-gray-800 text-gray-500 text-xs rounded-full">{selectedNeeds.length}</span>}
             {isFilterOpen ? <ChevronUp className="w-4 h-4 ml-auto" /> : <ChevronDown className="w-4 h-4 ml-auto" />}
           </button>
           {isFilterOpen && (
             <div className="pb-5">
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6 p-4 bg-gray-50 dark:bg-gray-800/50 rounded-xl">
                 <div className="space-y-3">
-                  <div className="flex justify-between items-center">
-                    <label className="text-sm text-gray-500 dark:text-gray-400">Budget Maksimal</label>
-                    <span className="text-sm font-semibold text-gray-900 dark:text-white">Rp {budget.toLocaleString('id-ID')}</span>
-                  </div>
-                  <input type="range" min="100000" max="30000000" step="100000" value={budget} onChange={(e) => setBudget(Number(e.target.value))} className="w-full" />
-                  <div className="flex flex-wrap gap-1.5">
-                    {BUDGET_PRESETS.map(preset => (
-                      <button key={preset.value} type="button" onClick={() => setBudget(preset.value)} className={cn("px-2.5 py-1 text-sm rounded-lg border transition-colors", budget === preset.value ? "bg-green-600 border-green-600 text-white" : "bg-white dark:bg-gray-900 border-gray-200 dark:border-gray-600 text-gray-500 dark:text-gray-400 hover:border-gray-400")}>{preset.label}</button>
-                    ))}
-                  </div>
+                  <div className="flex justify-between items-center"><label className="text-sm text-gray-500 dark:text-gray-400">Budget Maksimal</label><span className="text-sm font-semibold text-gray-900 dark:text-white">Rp {budget.toLocaleString('id-ID')}</span></div>
+                  <input type="range" min="100000" max="30000000" step="100000" value={budget} onChange={e=>setBudget(Number(e.target.value))} className="w-full" />
+                  <div className="flex flex-wrap gap-1.5">{BUDGET_PRESETS.map(p=>(<button key={p.value} type="button" onClick={()=>setBudget(p.value)} className={cn("px-2.5 py-1 text-sm rounded-lg border transition-colors",budget===p.value?"bg-green-600 border-green-600 text-white":"bg-white dark:bg-gray-900 border-gray-200 dark:border-gray-600 text-gray-500 dark:text-gray-400 hover:border-gray-400")}>{p.label}</button>))}</div>
                 </div>
                 <div className="space-y-3">
                   <label className="text-sm text-gray-500 dark:text-gray-400">Kebutuhan</label>
-                  <div className="flex flex-wrap gap-2">
-                    {NEEDS.map(need => (
-                      <button key={need} type="button" onClick={() => toggleNeed(need)} className={cn("px-3 py-1.5 rounded-lg text-sm font-medium border transition-colors", selectedNeeds.includes(need) ? "bg-green-600 border-green-600 text-white" : "bg-white dark:bg-gray-900 border-gray-200 dark:border-gray-600 text-gray-500 dark:text-gray-400 hover:border-gray-400")}>{need}</button>
-                    ))}
-                  </div>
+                  <div className="flex flex-wrap gap-2">{NEEDS.map(need=>(<button key={need} type="button" onClick={()=>toggleNeed(need)} className={cn("px-3 py-1.5 rounded-lg text-sm font-medium border transition-colors",selectedNeeds.includes(need)?"bg-green-600 border-green-600 text-white":"bg-white dark:bg-gray-900 border-gray-200 dark:border-gray-600 text-gray-500 dark:text-gray-400 hover:border-gray-400")}>{need}</button>))}</div>
                 </div>
                 <div className="space-y-3">
                   <label className="text-sm text-gray-500 dark:text-gray-400">Detail Tambahan</label>
-                  <textarea value={detail} onChange={(e) => setDetail(e.target.value)} placeholder="Contoh: Butuh untuk kerja desain grafis, baterai tahan lama, layar minimal 15 inch..." className="w-full p-3 border border-gray-200 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all resize-none h-[88px] text-sm bg-white dark:bg-gray-900 text-gray-900 dark:text-white placeholder:text-gray-400 dark:placeholder:text-gray-500" />
+                  <textarea value={detail} onChange={e=>setDetail(e.target.value)} placeholder="Contoh: Butuh untuk kerja desain grafis, baterai tahan lama..." className="w-full p-3 border border-gray-200 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all resize-none h-[88px] text-sm bg-white dark:bg-gray-900 text-gray-900 dark:text-white placeholder:text-gray-400" />
                 </div>
               </div>
             </div>
@@ -114,8 +128,8 @@ export function SearchForm({ onSubmit, isLoading }: SearchFormProps) {
       </div>
 
       <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-40">
-        <button type="submit" disabled={isLoading || !category || !subcategory || selectedNeeds.length === 0} className={cn("flex items-center justify-center px-8 py-3 rounded-xl text-sm font-semibold text-white shadow-sm transition-colors", isLoading || !category || !subcategory || selectedNeeds.length === 0 ? "bg-gray-300 dark:bg-gray-700 cursor-not-allowed" : "bg-green-600 hover:bg-green-700")}>
-          {isLoading ? (<span className="flex items-center gap-2"><Loader2 className="animate-spin h-4 w-4" />Memproses...</span>) : (<span>Cari Rekomendasi</span>)}
+        <button type="submit" disabled={isLoading} className={cn("flex items-center justify-center px-8 py-3 rounded-xl text-sm font-semibold text-white shadow-sm transition-colors", isLoading ? "bg-gray-300 dark:bg-gray-700 cursor-not-allowed":"bg-green-600 hover:bg-green-700")}>
+          {isLoading ? <span className="flex items-center gap-2"><Loader2 className="animate-spin h-4 w-4" />Memproses...</span> : <span>{imageBase64 ? 'Cari dengan Gambar' : 'Cari Rekomendasi'}</span>}
         </button>
       </div>
     </form>

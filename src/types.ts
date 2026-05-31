@@ -16,8 +16,8 @@ export interface Product {
   tokopedia_url: string;
   shopee_url: string;
   whatsapp_text: string;
-  /** Affiliate link (generated client-side) */
   affiliate_url?: string;
+  community_verified?: boolean;
 }
 
 export interface SearchResult {
@@ -38,12 +38,12 @@ export interface SearchHistory {
   needs: string[];
   detail: string;
   results: SearchResult;
-  createdAt: any; // Firestore Timestamp
+  createdAt: any;
 }
 
 export interface WishlistItem {
   id: string;
   userId: string;
   product: Product;
-  savedAt: any; // Firestore Timestamp
+  savedAt: any;
 }

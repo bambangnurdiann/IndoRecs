@@ -1,21 +1,24 @@
 import React, { useState, useEffect } from 'react';
-import { GoogleGenAI } from '@google/genai';
 import { SearchForm } from '../components/SearchForm';
 import { ProductCard } from '../components/ProductCard';
+import { WishlistTab } from '../components/WishlistTab';
+import { HistoryTab } from '../components/HistoryTab';
 import { SearchResult, Product, SearchHistory, WishlistItem } from '../types';
 import { useAuth } from '../contexts/AuthContext';
+import { useWishlist } from '../hooks/useWishlist';
+import { useSearchHistory } from '../hooks/useSearchHistory';
 import { db } from '../lib/firebase';
-import { collection, addDoc, serverTimestamp, query, where, orderBy, limit, getDocs, deleteDoc, doc } from 'firebase/firestore';
+import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
 import { AlertTriangle, ArrowRight, Loader2, X, Search } from 'lucide-react';
 import { AdPlacement } from '../components/AdPlacement';
 import { generateShopeeAffiliateLink } from '../lib/affiliate';
-
-let ai: GoogleGenAI | null = null;
-try { if (process.env.GEMINI_API_KEY) { ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY }); } }
-catch (e) { console.error("Failed to initialize Gemini API", e); }
+import toast from 'react-hot-toast';
 
 export default function Home({ activeTab, setActiveTab }: { activeTab: string, setActiveTab: (tab: any) => void }) {
   const { user, loginWithGoogle } = useAuth();
+  const { wishlist, toggleWishlist, isWishlisted } = useWishlist(user?.uid);
+  const { history, fetchHistory } = useSearchHistory(user?.uid);
+
   const [isLoading, setIsLoading] = useState(false);
   const [loadingText, setLoadingText] = useState("Mencari produk terbaik...");
   const [result, setResult] = useState<SearchResult | null>(null);
@@ -24,45 +27,88 @@ export default function Home({ activeTab, setActiveTab }: { activeTab: string, s
   const [showCompareModal, setShowCompareModal] = useState(false);
   const [compareResult, setCompareResult] = useState<any>(null);
   const [isComparing, setIsComparing] = useState(false);
-  const [wishlist, setWishlist] = useState<WishlistItem[]>([]);
-  const [history, setHistory] = useState<SearchHistory[]>([]);
+  const [streamedProducts, setStreamedProducts] = useState<Product[]>([]);
 
-  useEffect(() => { if (user) { fetchWishlist(); fetchHistory(); } else { setWishlist([]); setHistory([]); } }, [user]);
-  useEffect(() => { if (!isLoading) return; const texts = ["Mencari produk terbaik...", "Membandingkan harga...", "Menyusun rekomendasi..."]; let i = 0; const interval = setInterval(() => { i = (i + 1) % texts.length; setLoadingText(texts[i]); }, 2000); return () => clearInterval(interval); }, [isLoading]);
+  useEffect(() => { if (!isLoading) return; const texts = ["Mencari produk terbaik...","Membandingkan harga...","Menyusun rekomendasi..."]; let i=0; const iv=setInterval(()=>{i=(i+1)%texts.length;setLoadingText(texts[i])},2000); return ()=>clearInterval(iv); }, [isLoading]);
 
-  const fetchWishlist = async () => { if (!user) return; try { const q = query(collection(db, 'wishlist'), where('userId', '==', user.uid)); const snap = await getDocs(q); const items: WishlistItem[] = []; snap.forEach(d => items.push({ id: d.id, ...d.data() } as WishlistItem)); setWishlist(items); } catch (e) { console.error(e); } };
-  const fetchHistory = async () => { if (!user) return; try { const q = query(collection(db, 'searches'), where('userId', '==', user.uid), orderBy('createdAt', 'desc'), limit(20)); const snap = await getDocs(q); const items: SearchHistory[] = []; snap.forEach(d => items.push({ id: d.id, ...d.data() } as SearchHistory)); setHistory(items); } catch (e) { console.error(e); } };
-
-  const handleSearch = async (formData: any) => {
-    if (!ai) { alert("Gemini API Key belum dikonfigurasi."); return; }
-    setIsLoading(true); setResult(null); setCompareList([]);
+  const handleSearch = async (formData: any, stream = false) => {
+    setIsLoading(true); setResult(null); setCompareList([]); setStreamedProducts([]);
     try {
-      const prompt = `Carikan rekomendasi produk:
-Kategori: ${formData.category} - ${formData.subcategory}
-Budget: ${formData.budget}
-Kebutuhan: ${formData.needs.join(', ')}
-Detail: ${formData.detail}
+      const res = await fetch('/api/recommend', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({...formData,stream}) });
+      if (!res.ok) { const err=await res.json().catch(()=>({})); throw new Error(err.error||'Gagal mencari rekomendasi'); }
 
-Balas HANYA JSON dengan struktur:
-{"budget_warning":false,"budget_warning_message":"","summary":"ringkasan 1-2 kalimat","products":[{"rank":1,"name":"Nama Produk Lengkap","brand":"Brand","price_min":"Rp X.XXX.XXX","price_max":"Rp X.XXX.XXX","is_bekas":false,"badge":"Best Value","match_score":85,"match_reason":"alasan spesifik cocok untuk kebutuhan user","key_specs":["spek1"],"pros":["pro1"],"cons":["con1"],"best_for":"cocok untuk siapa","not_for":"tidak cocok untuk siapa","tokopedia_url":"https://www.tokopedia.com/search?st=product&q=KEYWORD","shopee_url":"https://shopee.co.id/product-name-i.SHOPID.ITEMID","whatsapp_text":"teks share"}],"tips":"tips pembelian spesifik","alternative_suggestion":"saran kalau budget dinaikkan"}
-Kembalikan tepat 3 produk. You are IndoRecs, an expert product recommendation assistant for Indonesian consumers. Always respond ONLY in valid JSON, no markdown, no backticks. All products must be real and available in Indonesia. Respond in Bahasa Indonesia.`;
-      const response = await ai.models.generateContent({ model: 'gemini-3-flash-preview', contents: prompt, config: { responseMimeType: "application/json" } });
-      const text = response.text; if (!text) throw new Error("Empty response");
-      const parsedResult = JSON.parse(text) as SearchResult;
-      parsedResult.products = parsedResult.products.map(p => ({ ...p, affiliate_url: generateShopeeAffiliateLink(p.name) }));
-      setResult(parsedResult);
-      if (user) { const docRef = await addDoc(collection(db, 'searches'), { userId: user.uid, ...formData, results: parsedResult, createdAt: serverTimestamp() }); setCurrentSearchId(docRef.id); fetchHistory(); }
-      else { setCurrentSearchId(null); }
-    } catch (e) { console.error(e); alert("Terjadi kesalahan saat mencari rekomendasi."); }
+      if (stream) {
+        // SSE streaming
+        const reader = res.body?.getReader();
+        if (!reader) throw new Error('Streaming tidak didukung');
+        const decoder = new TextDecoder();
+        let buffer = '';
+        while (true) {
+          const {done, value} = await reader.read();
+          if (done) break;
+          buffer += decoder.decode(value, {stream:true});
+          const lines = buffer.split('\n');
+          buffer = lines.pop() || '';
+          for (const line of lines) {
+            if (line.startsWith('data: ')) {
+              const data = line.slice(6);
+              if (data === '[DONE]') continue;
+              try {
+                const parsed = JSON.parse(data);
+                if (parsed.partial?.products) {
+                  setStreamedProducts(parsed.partial.products);
+                  if (parsed.partial.summary) {
+                    setResult(prev => prev ? {...prev, summary:parsed.partial.summary, products:parsed.partial.products, tips:parsed.partial.tips||prev.tips, alternative_suggestion:parsed.partial.alternative_suggestion||prev.alternative_suggestion} : parsed.partial);
+                  }
+                }
+              } catch { /* partial chunk */ }
+            }
+          }
+        }
+      } else {
+        const data: SearchResult = await res.json();
+        data.products = data.products.map(p => ({...p, affiliate_url: generateShopeeAffiliateLink(p.name)}));
+        setResult(data);
+        if (user) { const dr = await addDoc(collection(db,'searches'),{userId:user.uid,...formData,results:data,createdAt:serverTimestamp()}); setCurrentSearchId(dr.id); fetchHistory(); }
+        else { setCurrentSearchId(null); }
+      }
+    } catch (e: any) { console.error(e); toast.error(e.message||'Terjadi kesalahan saat mencari rekomendasi.'); }
     finally { setIsLoading(false); }
   };
 
-  const handleCompareToggle = (p: Product, sel: boolean) => { if (sel) { if (compareList.length >= 3) { alert("Maksimal 3"); return; } setCompareList([...compareList, p]); } else setCompareList(compareList.filter(x => x.name !== p.name)); };
-  const handleCompare = async () => { if (!ai || compareList.length < 2) return; setIsComparing(true); setShowCompareModal(true); try { const prompt = `Bandingkan produk: ${compareList.map(p => p.name).join(', ')}
-Balas HANYA JSON: {"winner":"...","winner_reason":"...","comparison":[{"aspect":"Performa","scores":{}}],"verdict":{}}
-Respond in Bahasa Indonesia.`; const resp = await ai.models.generateContent({ model: 'gemini-3-flash-preview', contents: prompt, config: { responseMimeType: "application/json" } }); const t = resp.text; if (t) setCompareResult(JSON.parse(t)); } catch (e) { console.error(e); setShowCompareModal(false); } finally { setIsComparing(false); } };
-  const handleWishlistToggle = async (p: Product) => { if (!user) return; const ex = wishlist.find(w => w.product.name === p.name); if (ex) { await deleteDoc(doc(db, 'wishlist', ex.id)); setWishlist(wishlist.filter(w => w.id !== ex.id)); } else { const dr = await addDoc(collection(db, 'wishlist'), { userId: user.uid, product: p, savedAt: serverTimestamp() }); setWishlist([...wishlist, { id: dr.id, userId: user.uid, product: p, savedAt: new Date() }]); } };
-  const handleFeedback = async (name: string, helpful: boolean) => { if (!user) { alert("Login dulu"); return; } try { await addDoc(collection(db, 'feedback'), { userId: user.uid, searchId: currentSearchId || 'unknown', productName: name, helpful, createdAt: serverTimestamp() }); alert("Terima kasih!"); } catch (e) { console.error(e); } };
+  const handleVisualSearch = async (imageBase64: string, mimeType: string) => {
+    setIsLoading(true); setResult(null); setCompareList([]);
+    try {
+      const res = await fetch('/api/visual-search', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({image:imageBase64,mimeType}) });
+      if (!res.ok) { const err=await res.json().catch(()=>({})); throw new Error(err.error||'Gagal memproses gambar'); }
+      const data: SearchResult = await res.json();
+      data.products = data.products.map(p => ({...p, affiliate_url: generateShopeeAffiliateLink(p.name)}));
+      setResult(data);
+      if (user) { const dr = await addDoc(collection(db,'searches'),{userId:user.uid,category:'Visual Search',subcategory:'Gambar',budget:'-',needs:[],detail:'Pencarian via gambar',results:data,createdAt:serverTimestamp()}); setCurrentSearchId(dr.id); fetchHistory(); }
+    } catch (e: any) { console.error(e); toast.error(e.message||'Gagal memproses gambar'); }
+    finally { setIsLoading(false); }
+  };
+
+  const handleCompareToggle = (p: Product, sel: boolean) => {
+    if (sel && compareList.length>=3) { toast.error('Maksimal membandingkan 3 produk'); return; }
+    setCompareList(sel ? [...compareList,p] : compareList.filter(x=>x.name!==p.name));
+  };
+  const handleCompare = async () => {
+    if (compareList.length<2) return;
+    setIsComparing(true); setShowCompareModal(true);
+    try {
+      const res = await fetch('/api/compare', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({productNames:compareList.map(p=>p.name)}) });
+      if (!res.ok) { const err=await res.json().catch(()=>({})); throw new Error(err.error||'Gagal membandingkan'); }
+      const data = await res.json(); setCompareResult(data);
+    } catch (e: any) { console.error(e); toast.error(e.message); setShowCompareModal(false); }
+    finally { setIsComparing(false); }
+  };
+
+  const handleFeedback = async (name: string, helpful: boolean) => {
+    if (!user) { toast.error('Login untuk memberikan feedback'); return; }
+    try { await addDoc(collection(db,'feedback'),{userId:user.uid,searchId:currentSearchId||'unknown',productName:name,helpful,createdAt:serverTimestamp()}); toast.success('Terima kasih atas feedback Anda!'); }
+    catch (e) { console.error(e); }
+  };
 
   const renderSkeleton = () => (
     <div className="space-y-8">
@@ -73,36 +119,25 @@ Respond in Bahasa Indonesia.`; const resp = await ai.models.generateContent({ mo
     </div>
   );
 
+  const displayProducts = streamedProducts.length > 0 ? streamedProducts : result?.products || [];
+
   return (<>
-    {activeTab === 'search' && <SearchForm onSubmit={handleSearch} isLoading={isLoading} />}
+    {activeTab === 'search' && <SearchForm onSubmit={handleSearch} isLoading={isLoading} onVisualSearch={handleVisualSearch} />}
     <main className="max-w-[1440px] mx-auto px-4 sm:px-6 lg:px-8 py-8">
       <AdPlacement placement="top_banner" className="mb-8 h-24 md:h-32" />
       {activeTab === 'search' && (<div className="space-y-8">
         {isLoading ? renderSkeleton() : result ? (<div className="space-y-8">
-          {result.budget_warning && (
-            <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-xl p-4">
-              <p className="text-sm text-yellow-700 dark:text-yellow-300">{result.budget_warning_message}</p>
-            </div>
-          )}
+          {result.budget_warning && (<div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-xl p-4"><p className="text-sm text-yellow-700 dark:text-yellow-300">{result.budget_warning_message}</p></div>)}
           <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 p-6">
             <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-1">Ringkasan Rekomendasi</h2>
             <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">Berdasarkan kriteria yang Anda berikan</p>
             <p className="text-sm text-gray-700 dark:text-gray-300 leading-relaxed">{result.summary}</p>
           </div>
           <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 p-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div>
-                <h3 className="text-base font-semibold text-gray-900 dark:text-white mb-2">Tips Pembelian</h3>
-                <p className="text-sm text-gray-500 dark:text-gray-400 leading-relaxed">{result.tips}</p>
-              </div>
-              <div>
-                <h3 className="text-base font-semibold text-gray-900 dark:text-white mb-2">Alternatif Budget</h3>
-                <p className="text-sm text-gray-500 dark:text-gray-400 leading-relaxed">{result.alternative_suggestion}</p>
-              </div>
-            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6"><div><h3 className="text-base font-semibold text-gray-900 dark:text-white mb-2">Tips Pembelian</h3><p className="text-sm text-gray-500 dark:text-gray-400 leading-relaxed">{result.tips}</p></div><div><h3 className="text-base font-semibold text-gray-900 dark:text-white mb-2">Alternatif Budget</h3><p className="text-sm text-gray-500 dark:text-gray-400 leading-relaxed">{result.alternative_suggestion}</p></div></div>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-            {result.products.map((product, idx) => (<ProductCard key={idx} product={product} onCompareToggle={handleCompareToggle} isCompared={compareList.some(p => p.name === product.name)} onWishlistToggle={handleWishlistToggle} isWishlisted={wishlist.some(w => w.product.name === product.name)} onFeedback={handleFeedback} />))}
+            {displayProducts.map((product, idx) => (<ProductCard key={idx} product={product} onCompareToggle={handleCompareToggle} isCompared={compareList.some(p => p.name === product.name)} onWishlistToggle={toggleWishlist} isWishlisted={isWishlisted(product.name)} onFeedback={handleFeedback} />))}
           </div>
         </div>) : (<div className="space-y-6">
           <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 p-8">
@@ -118,57 +153,19 @@ Respond in Bahasa Indonesia.`; const resp = await ai.models.generateContent({ mo
         </div>)}
       </div>)}
 
-      {activeTab === 'history' && (user ? (<div className="space-y-6">
-        <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Riwayat Pencarian</h2>
-        {history.length === 0 ? <p className="text-sm text-gray-500 dark:text-gray-400">Belum ada riwayat pencarian.</p> : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {history.map(item => (
-              <div key={item.id} className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 p-4 cursor-pointer hover:border-gray-400 dark:hover:border-gray-500 transition-colors" onClick={() => { setResult(item.results); setActiveTab('search'); }}>
-                <div className="flex justify-between items-start mb-2">
-                  <span className="text-sm text-gray-500 dark:text-gray-400">{item.category}</span>
-                  <span className="text-sm text-gray-400 dark:text-gray-500">{new Date(item.createdAt?.toDate?.() || Date.now()).toLocaleDateString('id-ID')}</span>
-                </div>
-                <h3 className="text-base font-semibold text-gray-900 dark:text-white mb-1">{item.subcategory}</h3>
-                <p className="text-sm text-gray-500 dark:text-gray-400 mb-2">Budget: {item.budget}</p>
-                <p className="text-sm text-gray-500 dark:text-gray-400 line-clamp-2">{item.results.summary}</p>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>) : (
-        <div className="max-w-md mx-auto text-center py-16">
-          <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">Login untuk melihat Riwayat</h2>
-          <p className="text-sm text-gray-500 dark:text-gray-400 mb-6">Masuk dengan akun Google untuk menyimpan dan melihat riwayat pencarian kamu.</p>
-          <button onClick={loginWithGoogle} className="px-6 py-2.5 bg-green-600 text-white text-sm font-semibold rounded-lg hover:bg-green-700 transition-colors">Login dengan Google</button>
-        </div>
-      ))}
-      {activeTab === 'wishlist' && (user ? (<div className="space-y-6">
-        <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Wishlist Saya</h2>
-        {wishlist.length === 0 ? <p className="text-sm text-gray-500 dark:text-gray-400">Belum ada produk di wishlist.</p> : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {wishlist.map(item => (<ProductCard key={item.id} product={item.product} onCompareToggle={handleCompareToggle} isCompared={compareList.some(p => p.name === item.product.name)} onWishlistToggle={handleWishlistToggle} isWishlisted={true} onFeedback={handleFeedback} />))}
-          </div>
-        )}
-      </div>) : (
-        <div className="max-w-md mx-auto text-center py-16">
-          <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">Login untuk melihat Wishlist</h2>
-          <p className="text-sm text-gray-500 dark:text-gray-400 mb-6">Masuk dengan akun Google untuk menyimpan produk favorit kamu di wishlist.</p>
-          <button onClick={loginWithGoogle} className="px-6 py-2.5 bg-green-600 text-white text-sm font-semibold rounded-lg hover:bg-green-700 transition-colors">Login dengan Google</button>
-        </div>
-      ))}
+      {activeTab === 'history' && (user ? <HistoryTab history={history} onSelect={(r) => { setResult(r); setActiveTab('search'); }} /> : (<div className="max-w-md mx-auto text-center py-16"><h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">Login untuk melihat Riwayat</h2><p className="text-sm text-gray-500 dark:text-gray-400 mb-6">Masuk dengan akun Google untuk menyimpan dan melihat riwayat pencarian kamu.</p><button onClick={loginWithGoogle} className="px-6 py-2.5 bg-green-600 text-white text-sm font-semibold rounded-lg hover:bg-green-700 transition-colors">Login dengan Google</button></div>))}
+      {activeTab === 'wishlist' && (user ? <WishlistTab wishlist={wishlist} compareList={compareList} onCompareToggle={handleCompareToggle} onWishlistToggle={toggleWishlist} onFeedback={handleFeedback} /> : (<div className="max-w-md mx-auto text-center py-16"><h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">Login untuk melihat Wishlist</h2><p className="text-sm text-gray-500 dark:text-gray-400 mb-6">Masuk dengan akun Google untuk menyimpan produk favorit kamu di wishlist.</p><button onClick={loginWithGoogle} className="px-6 py-2.5 bg-green-600 text-white text-sm font-semibold rounded-lg hover:bg-green-700 transition-colors">Login dengan Google</button></div>))}
     </main>
     {compareList.length > 0 && (
       <div className="fixed bottom-0 left-0 right-0 bg-white dark:bg-gray-900 border-t border-gray-200 dark:border-gray-700 p-4 z-40">
         <div className="max-w-[1440px] mx-auto flex flex-col sm:flex-row items-center justify-between gap-4">
           <div className="flex items-center gap-3">
             <span className="text-sm font-semibold text-gray-500 dark:text-gray-400">{compareList.length} produk</span>
-            <div className="flex gap-1.5 overflow-x-auto no-scrollbar">
-              {compareList.map(p => (<span key={p.name} className="text-sm text-gray-500 dark:text-gray-400 bg-gray-100 dark:bg-gray-800 px-2 py-1 rounded max-w-[120px] truncate">{p.name}</span>))}
-            </div>
+            <div className="flex gap-1.5 overflow-x-auto no-scrollbar">{compareList.map(p => (<span key={p.name} className="text-sm text-gray-500 dark:text-gray-400 bg-gray-100 dark:bg-gray-800 px-2 py-1 rounded max-w-[120px] truncate">{p.name}</span>))}</div>
           </div>
           <div className="flex items-center gap-2">
             <button onClick={() => setCompareList([])} className="px-4 py-2 text-sm text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 transition-colors">Batal</button>
-            <button onClick={handleCompare} disabled={compareList.length < 2} className="px-6 py-2 bg-green-600 text-white text-sm font-semibold rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 transition-colors">Bandingkan<ArrowRight className="w-4 h-4" /></button>
+            <button onClick={handleCompare} disabled={compareList.length<2} className="px-6 py-2 bg-green-600 text-white text-sm font-semibold rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 transition-colors">Bandingkan<ArrowRight className="w-4 h-4" /></button>
           </div>
         </div>
       </div>
@@ -187,13 +184,9 @@ Respond in Bahasa Indonesia.`; const resp = await ai.models.generateContent({ mo
                 <p className="text-xl font-bold text-gray-900 dark:text-white mb-1">{compareResult.winner}</p>
                 <p className="text-sm text-gray-500 dark:text-gray-400">{compareResult.winner_reason}</p>
               </div>
-              <div className="overflow-x-auto">
-                <table className="w-full text-left border-collapse"><thead><tr><th className="p-3 border-b border-gray-200 dark:border-gray-700 text-sm font-semibold text-gray-500 dark:text-gray-400">Aspek</th>{compareList.map(p => (<th key={p.name} className="p-3 border-b border-gray-200 dark:border-gray-700 text-sm font-semibold text-gray-900 dark:text-white">{p.name}</th>))}</tr></thead>
-                  <tbody>{compareResult.comparison.map((comp: any, i: number) => (<tr key={i} className="border-b border-gray-100 dark:border-gray-700"><td className="p-3 text-sm text-gray-900 dark:text-white">{comp.aspect}</td>{compareList.map(p => { const s = comp.scores[p.name] || { score: '-', note: '-' }; return (<td key={p.name} className="p-3"><span className="text-sm font-semibold text-green-600">{s.score}/10</span><p className="text-sm text-gray-500 dark:text-gray-400">{s.note}</p></td>); })}</tr>))}</tbody></table>
-              </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {Object.entries(compareResult.verdict).map(([name, verdict]: any) => (<div key={name} className="bg-gray-50 dark:bg-gray-800/50 rounded-xl p-4"><h4 className="text-sm font-semibold text-gray-900 dark:text-white mb-1">{name}</h4><p className="text-sm text-gray-500 dark:text-gray-400">{verdict}</p></div>))}
-              </div>
+              <div className="overflow-x-auto"><table className="w-full text-left border-collapse"><thead><tr><th className="p-3 border-b border-gray-200 dark:border-gray-700 text-sm font-semibold text-gray-500 dark:text-gray-400">Aspek</th>{compareList.map(p => (<th key={p.name} className="p-3 border-b border-gray-200 dark:border-gray-700 text-sm font-semibold text-gray-900 dark:text-white">{p.name}</th>))}</tr></thead>
+                <tbody>{compareResult.comparison.map((comp: any, i: number) => (<tr key={i} className="border-b border-gray-100 dark:border-gray-700"><td className="p-3 text-sm text-gray-900 dark:text-white">{comp.aspect}</td>{compareList.map(p => (<td key={p.name} className="p-3"><span className="text-sm font-semibold text-green-600">{(comp.scores[p.name] || {score:'-'}).score}/10</span><p className="text-sm text-gray-500 dark:text-gray-400">{(comp.scores[p.name] || {note:'-'}).note}</p></td>))}</tr>))}</tbody></table></div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">{Object.entries(compareResult.verdict).map(([name, verdict]: any) => (<div key={name} className="bg-gray-50 dark:bg-gray-800/50 rounded-xl p-4"><h4 className="text-sm font-semibold text-gray-900 dark:text-white mb-1">{name}</h4><p className="text-sm text-gray-500 dark:text-gray-400">{verdict}</p></div>))}</div>
             </div>) : null}
           </div>
         </div>
