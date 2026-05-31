@@ -8,7 +8,7 @@ import { db } from '../lib/firebase';
 import { collection, addDoc, serverTimestamp, query, where, orderBy, limit, getDocs, deleteDoc, doc } from 'firebase/firestore';
 import { AlertTriangle, ArrowRight, Loader2, X, Search, Sparkles, Lightbulb, TrendingUp } from 'lucide-react';
 import { AdPlacement } from '../components/AdPlacement';
-import { convertShopeeUrls } from '../lib/affiliate';
+import { generateShopeeAffiliateLink } from '../lib/affiliate';
 
 let ai: GoogleGenAI | null = null;
 try {
@@ -31,7 +31,6 @@ export default function Home({ activeTab, setActiveTab }: { activeTab: string, s
   const [isComparing, setIsComparing] = useState(false);
   const [wishlist, setWishlist] = useState<WishlistItem[]>([]);
   const [history, setHistory] = useState<SearchHistory[]>([]);
-  const [isConvertingAffiliate, setIsConvertingAffiliate] = useState(false);
 
   useEffect(() => {
     if (user) { fetchWishlist(); fetchHistory(); }
@@ -119,20 +118,11 @@ Kembalikan tepat 3 produk. You are IndoRecs, an expert product recommendation as
       const text = response.text;
       if (!text) throw new Error("Empty response");
       const parsedResult = JSON.parse(text) as SearchResult;
+      parsedResult.products = parsedResult.products.map(p => ({
+        ...p,
+        affiliate_url: generateShopeeAffiliateLink(p.name)
+      }));
       setResult(parsedResult);
-
-      const shopeeUrls = parsedResult.products.map((p) => p.shopee_url).filter((url) => url && url.includes('shopee.co.id'));
-      if (shopeeUrls.length > 0) {
-        setIsConvertingAffiliate(true);
-        try {
-          const affiliateLinks = await convertShopeeUrls(shopeeUrls);
-          const updatedProducts = parsedResult.products.map((product) => ({ ...product, affiliate_url: affiliateLinks[product.shopee_url] || null }));
-          const updatedResult = { ...parsedResult, products: updatedProducts };
-          setResult(updatedResult);
-          parsedResult.products = updatedProducts;
-        } catch (error) { console.error('Affiliate conversion failed:', error); }
-        finally { setIsConvertingAffiliate(false); }
-      }
 
       if (user) {
         const docRef = await addDoc(collection(db, 'searches'), { userId: user.uid, ...formData, results: parsedResult, createdAt: serverTimestamp() });
@@ -295,7 +285,6 @@ Always respond ONLY in valid JSON, no markdown, no backticks. Respond in Bahasa 
                       onWishlistToggle={handleWishlistToggle}
                       isWishlisted={wishlist.some(w => w.product.name === product.name)}
                       onFeedback={handleFeedback}
-                      isConvertingAffiliate={isConvertingAffiliate}
                     />
                   ))}
                 </div>
