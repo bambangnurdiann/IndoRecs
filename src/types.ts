@@ -14,10 +14,10 @@ export interface Product {
   best_for: string;
   not_for: string;
   tokopedia_url: string;
-  shopee_url?: string; // Optional — Gemini kadang halusinasi URL ini, tidak dipakai untuk tombol
+  shopee_url: string;
   whatsapp_text: string;
-  /** Affiliate link yang di-generate client-side dari nama produk */
-  affiliate_url: string;
+  /** Affiliate link (generated client-side) */
+  affiliate_url?: string;
 }
 
 export interface SearchResult {
