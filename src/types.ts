@@ -16,8 +16,8 @@ export interface Product {
   tokopedia_url: string;
   shopee_url: string;
   whatsapp_text: string;
-  /** Affiliate link (populated after conversion via API) */
-  affiliate_url?: string | null;
+  /** Affiliate link (generated client-side) */
+  affiliate_url?: string;
 }
 
 export interface SearchResult {

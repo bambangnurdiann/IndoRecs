@@ -1,6 +1,6 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Product } from '../types';
-import { CheckCircle2, XCircle, ShoppingBag, Share2, Heart, AlertTriangle, ThumbsUp, ThumbsDown, Target, Loader2 } from 'lucide-react';
+import { CheckCircle2, XCircle, ShoppingBag, Share2, Heart, ThumbsUp, ThumbsDown, ChevronDown, ChevronUp } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { useAuth } from '../contexts/AuthContext';
 
@@ -11,19 +11,18 @@ interface ProductCardProps {
   onWishlistToggle: (product: Product) => void | Promise<void>;
   isWishlisted: boolean;
   onFeedback: (productName: string, helpful: boolean) => void | Promise<void>;
-  isConvertingAffiliate?: boolean;
 }
 
-export const ProductCard: React.FC<ProductCardProps> = ({ 
-  product, 
-  onCompareToggle, 
-  isCompared, 
-  onWishlistToggle, 
+export const ProductCard: React.FC<ProductCardProps> = ({
+  product,
+  onCompareToggle,
+  isCompared,
+  onWishlistToggle,
   isWishlisted,
   onFeedback,
-  isConvertingAffiliate = false,
 }) => {
   const { user } = useAuth();
+  const [showSpecs, setShowSpecs] = useState(false);
 
   const handleShare = (platform: 'wa' | 'twitter') => {
     const text = `Nemu rekomendasi ${product.name} di IndoRecs! 💰 ${product.price_min} ✅ Cocok untuk ${product.best_for} 🔗 ${window.location.href}`;
@@ -34,163 +33,130 @@ export const ProductCard: React.FC<ProductCardProps> = ({
     }
   };
 
+  const scoreColor = product.match_score >= 80 ? 'text-green-600 dark:text-green-400' : product.match_score >= 60 ? 'text-yellow-600 dark:text-yellow-400' : 'text-red-500 dark:text-red-400';
+  const progressColor = product.match_score >= 80 ? '#22c55e' : product.match_score >= 60 ? '#eab308' : '#ef4444';
+
   return (
-    <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden hover:shadow-md transition-all duration-300 flex flex-col h-full">
-      <div className="p-5 flex flex-col h-full space-y-4">
-        {/* Badge & Wishlist */}
-        <div className="flex justify-between items-start">
-          <div className="flex flex-wrap gap-2">
-            <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider bg-green-50 text-green-700 border border-green-100">
-              {product.badge}
-            </span>
-            {product.is_bekas && (
-              <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider bg-orange-50 text-orange-700 border border-orange-100">
-                BEKAS
+    <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden hover:shadow-lg hover:border-gray-200 dark:hover:border-gray-600 transition-all duration-300">
+      <div className="p-5 space-y-4">
+        {/* Header: Name, Brand, Badge, Match Score */}
+        <div className="flex items-start justify-between gap-3">
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2 flex-wrap mb-1">
+              <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider bg-green-50 dark:bg-green-900/30 text-green-700 dark:text-green-400 border border-green-100 dark:border-green-800">
+                {product.badge}
               </span>
-            )}
+              {product.is_bekas && (
+                <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider bg-orange-50 dark:bg-orange-900/30 text-orange-700 dark:text-orange-400 border border-orange-100 dark:border-orange-800">
+                  BEKAS
+                </span>
+              )}
+            </div>
+            <h3 className="text-lg font-bold text-gray-900 dark:text-white leading-tight line-clamp-2">{product.name}</h3>
+            <p className="text-sm text-gray-400 dark:text-gray-500 mt-0.5">{product.brand}</p>
           </div>
-          <button 
-            onClick={() => {
-              if (!user) {
-                alert("Login untuk simpan ke wishlist");
-                return;
-              }
-              onWishlistToggle(product);
-            }}
-            className={cn(
-              "p-1.5 rounded-full transition-colors",
-              isWishlisted ? "text-red-500 bg-red-50" : "text-gray-300 hover:text-red-500 hover:bg-red-50"
-            )}
+          {/* Radial Match Score */}
+          <div className="flex flex-col items-center gap-1 flex-shrink-0">
+            <div className="radial-progress" style={{ '--progress': product.match_score, '--progress-color': progressColor } as React.CSSProperties}>
+              <span className={cn("text-xs font-bold", scoreColor)}>{product.match_score}%</span>
+            </div>
+            <span className="text-[10px] text-gray-400 dark:text-gray-500 font-medium">Match</span>
+          </div>
+        </div>
+
+        {/* Price */}
+        <div className="flex items-center justify-between">
+          <div>
+            <span className="text-base font-bold text-gray-900 dark:text-white">{product.price_min}</span>
+            <span className="text-xs text-gray-400 dark:text-gray-500 mx-1.5">-</span>
+            <span className="text-sm font-semibold text-gray-500 dark:text-gray-400">{product.price_max}</span>
+          </div>
+          <button
+            onClick={() => { if (!user) { alert('Login untuk simpan ke wishlist'); return; } onWishlistToggle(product); }}
+            className={cn("p-2 rounded-full transition-all duration-200", isWishlisted ? "text-red-500 dark:text-red-400 bg-red-50 dark:bg-red-900/30" : "text-gray-300 dark:text-gray-600 hover:text-red-500 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/30")}
           >
             <Heart className={cn("w-4 h-4", isWishlisted && "fill-current")} />
           </button>
         </div>
 
-        {/* Product Info */}
-        <div className="space-y-1">
-          <h3 className="text-[18px] font-semibold text-gray-900 leading-tight line-clamp-2 min-h-[2.5rem]">{product.name}</h3>
-          <p className="text-sm text-gray-500">{product.brand}</p>
-          <div className="pt-1">
-            <span className="text-[16px] font-bold text-green-600">{product.price_min}</span>
-            <span className="text-xs text-gray-400 mx-1">sd</span>
-            <span className="text-sm font-semibold text-gray-700">{product.price_max}</span>
-          </div>
-        </div>
+        {/* Match Reason */}
+        <p className="text-xs text-gray-500 dark:text-gray-400 italic leading-relaxed border-l-2 border-green-200 dark:border-green-800 pl-3">“{product.match_reason}”</p>
 
-        {/* Match Score */}
-        <div className="space-y-2 pt-1">
-          <div className="flex justify-between items-center">
-            <span className="text-[12px] font-medium text-gray-500">Match Score</span>
-            <span className="text-[12px] font-bold text-green-600">{product.match_score}%</span>
-          </div>
-          <div className="relative w-full bg-gray-100 rounded-full h-1.5 overflow-hidden">
-            <div 
-              className="absolute top-0 left-0 bg-green-500 h-full rounded-full transition-all duration-500" 
-              style={{ width: `${product.match_score}%` }}
-            />
-          </div>
-          <p className="text-[12px] text-gray-500 italic line-clamp-2">&ldquo;{product.match_reason}&rdquo;</p>
-        </div>
-
-        <hr className="border-gray-50" />
-
-        {/* Specs */}
-        <div className="space-y-2">
-          <h4 className="text-[11px] font-bold text-gray-400 uppercase tracking-wider">Spesifikasi</h4>
-          <div className="flex flex-wrap gap-1.5">
-            {product.key_specs.slice(0, 4).map((spec, i) => (
-              <span key={i} className="px-2 py-1 bg-gray-50 rounded text-[11px] text-gray-600 font-medium">
-                {spec}
-              </span>
-            ))}
-          </div>
-        </div>
-
-        {/* Pros & Cons */}
-        <div className="grid grid-cols-2 gap-4 pt-1">
+        {/* Pros & Cons - 2 Column Layout */}
+        <div className="grid grid-cols-2 gap-4">
           <div className="space-y-1.5">
-            <h4 className="text-[11px] font-bold text-green-600 uppercase tracking-wider flex items-center">
-              <CheckCircle2 className="w-3 h-3 mr-1" /> Pros
+            <h4 className="text-[11px] font-bold text-green-600 dark:text-green-400 uppercase tracking-wider flex items-center gap-1">
+              <CheckCircle2 className="w-3 h-3" /> Kelebihan
             </h4>
             <ul className="space-y-1">
               {product.pros.slice(0, 3).map((pro, i) => (
-                <li key={i} className="text-[12px] text-gray-600 leading-tight flex items-start">
-                  <span className="text-green-400 mr-1">•</span>
-                  {pro}
+                <li key={i} className="text-xs text-gray-600 dark:text-gray-300 leading-snug flex items-start gap-1.5">
+                  <CheckCircle2 className="w-3 h-3 text-green-400 dark:text-green-500 flex-shrink-0 mt-0.5" />
+                  <span>{pro}</span>
                 </li>
               ))}
             </ul>
           </div>
           <div className="space-y-1.5">
-            <h4 className="text-[11px] font-bold text-red-500 uppercase tracking-wider flex items-center">
-              <XCircle className="w-3 h-3 mr-1" /> Cons
+            <h4 className="text-[11px] font-bold text-red-500 dark:text-red-400 uppercase tracking-wider flex items-center gap-1">
+              <XCircle className="w-3 h-3" /> Kekurangan
             </h4>
             <ul className="space-y-1">
               {product.cons.slice(0, 3).map((con, i) => (
-                <li key={i} className="text-[12px] text-gray-500 leading-tight flex items-start">
-                  <span className="text-red-300 mr-1">•</span>
-                  {con}
+                <li key={i} className="text-xs text-gray-500 dark:text-gray-400 leading-snug flex items-start gap-1.5">
+                  <XCircle className="w-3 h-3 text-red-300 dark:text-red-500 flex-shrink-0 mt-0.5" />
+                  <span>{con}</span>
                 </li>
               ))}
             </ul>
           </div>
         </div>
 
-        {/* Spacer */}
-        <div className="flex-grow" />
-
-        {/* Actions */}
-        <div className="space-y-2 pt-4">
-          <a 
-            href={product.tokopedia_url} 
-            target="_blank" 
-            rel="noopener noreferrer"
-            className="w-full flex items-center justify-center px-4 py-2.5 bg-[#00AA5B] text-white text-sm font-bold rounded-lg hover:bg-[#008f4c] transition-colors shadow-sm"
+        {/* Expandable Specs */}
+        <div>
+          <button
+            onClick={() => setShowSpecs(!showSpecs)}
+            className="flex items-center gap-1 text-xs font-semibold text-gray-500 dark:text-gray-400 hover:text-green-600 dark:hover:text-green-400 transition-colors"
           >
-            <ShoppingBag className="w-4 h-4 mr-2" />
-            Beli di Tokopedia
-          </a>
-          {isConvertingAffiliate ? (
-            <div className="w-full flex items-center justify-center px-4 py-2.5 bg-orange-50 text-[#EE4D2D] text-sm font-bold rounded-lg border border-[#EE4D2D]">
-              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-              Menyiapkan link...
+            {showSpecs ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+            {showSpecs ? 'Sembunyikan Spesifikasi' : 'Lihat Spesifikasi'}
+          </button>
+          {showSpecs && (
+            <div className="mt-2 flex flex-wrap gap-1.5">
+              {product.key_specs.map((spec, i) => (
+                <span key={i} className="px-2.5 py-1 bg-gray-50 dark:bg-gray-800 border border-gray-100 dark:border-gray-700 rounded-lg text-[11px] text-gray-600 dark:text-gray-300 font-medium">
+                  {spec}
+                </span>
+              ))}
             </div>
-          ) : (
-            <a 
-              href={product.affiliate_url || product.shopee_url} 
-              target="_blank" 
-              rel="noopener noreferrer"
-              className="w-full flex items-center justify-center px-4 py-2.5 bg-white text-[#EE4D2D] text-sm font-bold rounded-lg border border-[#EE4D2D] hover:bg-orange-50 transition-colors"
-            >
-              Beli di Shopee
-            </a>
           )}
+        </div>
 
-          <div className="flex items-center justify-between pt-2">
-            <label className="flex items-center space-x-2 cursor-pointer group">
-              <input 
-                type="checkbox" 
-                checked={isCompared}
-                onChange={(e) => onCompareToggle(product, e.target.checked)}
-                className="h-4 w-4 rounded border-gray-300 text-green-600 focus:ring-green-500 cursor-pointer"
-              />
-              <span className="text-[12px] text-gray-500 group-hover:text-gray-700 transition-colors">Bandingkan</span>
-            </label>
+        {/* CTA Buttons */}
+        <div className="flex gap-2 pt-2">
+          <a href={product.tokopedia_url} target="_blank" rel="noopener noreferrer" className="flex-1 flex items-center justify-center px-3 py-2.5 bg-white dark:bg-gray-900 text-[#00AA5B] dark:text-[#00AA5B] text-xs font-bold rounded-xl border-2 border-[#00AA5B] hover:bg-[#00AA5B] hover:text-white transition-all duration-200">
+            <ShoppingBag className="w-3.5 h-3.5 mr-1.5" />
+            Tokopedia
+          </a>
+          <a href={product.affiliate_url || product.shopee_url} target="_blank" rel="noopener noreferrer" className="flex-1 flex items-center justify-center px-3 py-2.5 bg-white dark:bg-gray-900 text-[#EE4D2D] dark:text-[#EE4D2D] text-xs font-bold rounded-xl border-2 border-[#EE4D2D] hover:bg-[#EE4D2D] hover:text-white transition-all duration-200">
+            <ShoppingBag className="w-3.5 h-3.5 mr-1.5" />
+            Shopee
+          </a>
+        </div>
 
-            <div className="flex items-center gap-1">
-              <button onClick={() => handleShare('wa')} className="p-1.5 text-gray-400 hover:text-green-600 transition-colors" title="Share">
-                <Share2 className="w-3.5 h-3.5" />
-              </button>
-              <button onClick={() => onFeedback(product.name, true)} className="p-1.5 text-gray-400 hover:text-blue-600 transition-colors">
-                <ThumbsUp className="w-3.5 h-3.5" />
-              </button>
-              <button onClick={() => onFeedback(product.name, false)} className="p-1.5 text-gray-400 hover:text-red-600 transition-colors">
-                <ThumbsDown className="w-3.5 h-3.5" />
-              </button>
-            </div>
+        {/* Bottom Actions */}
+        <div className="flex items-center justify-between pt-1 border-t border-gray-50 dark:border-gray-700">
+          <label className="flex items-center space-x-2 cursor-pointer group">
+            <input type="checkbox" checked={isCompared} onChange={(e) => onCompareToggle(product, e.target.checked)} className="h-3.5 w-3.5 rounded border-gray-300 dark:border-gray-600 text-green-600 dark:text-green-500 focus:ring-green-500 cursor-pointer" />
+            <span className="text-[11px] text-gray-500 dark:text-gray-400 group-hover:text-gray-700 dark:group-hover:text-gray-200 transition-colors">Bandingkan</span>
+          </label>
+          <div className="flex items-center gap-1">
+            <button onClick={() => handleShare('wa')} className="p-1.5 text-gray-400 dark:text-gray-500 hover:text-green-600 dark:hover:text-green-400 transition-colors" title="Share"><Share2 className="w-3.5 h-3.5" /></button>
+            <button onClick={() => onFeedback(product.name, true)} className="p-1.5 text-gray-400 dark:text-gray-500 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"><ThumbsUp className="w-3.5 h-3.5" /></button>
+            <button onClick={() => onFeedback(product.name, false)} className="p-1.5 text-gray-400 dark:text-gray-500 hover:text-red-600 dark:hover:text-red-400 transition-colors"><ThumbsDown className="w-3.5 h-3.5" /></button>
           </div>
         </div>
       </div>
     </div>
   );
-}
+};

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Monitor, Shirt, Home, Sparkles, Dumbbell, Loader2 } from 'lucide-react';
+import { Monitor, Shirt, Home, Sparkles, Dumbbell, Loader2, ChevronDown, ChevronUp, SlidersHorizontal } from 'lucide-react';
 import { cn } from '../lib/utils';
 
 const CATEGORIES = [
@@ -31,6 +31,7 @@ export function SearchForm({ onSubmit, isLoading }: SearchFormProps) {
   const [budget, setBudget] = useState<number>(3000000);
   const [selectedNeeds, setSelectedNeeds] = useState<string[]>([]);
   const [detail, setDetail] = useState('');
+  const [isFilterOpen, setIsFilterOpen] = useState(false);
 
   const activeCategory = CATEGORIES.find(c => c.id === category);
 
@@ -40,165 +41,83 @@ export function SearchForm({ onSubmit, isLoading }: SearchFormProps) {
       alert('Mohon lengkapi kategori, subkategori, dan kebutuhan.');
       return;
     }
-    
-    onSubmit({
-      category,
-      subcategory,
-      budget: `Rp ${budget.toLocaleString('id-ID')}`,
-      needs: selectedNeeds,
-      detail
-    });
+    onSubmit({ category, subcategory, budget: `Rp ${budget.toLocaleString('id-ID')}`, needs: selectedNeeds, detail });
   };
 
   const toggleNeed = (need: string) => {
-    setSelectedNeeds(prev => 
-      prev.includes(need) ? prev.filter(n => n !== need) : [...prev, need]
-    );
+    setSelectedNeeds(prev => prev.includes(need) ? prev.filter(n => n !== need) : [...prev, need]);
   };
 
   return (
-    <form onSubmit={handleSubmit} className="bg-white rounded-xl shadow-sm border border-gray-100 p-5 space-y-8">
-      <div className="space-y-6">
-        {/* Kategori */}
-        <div className="space-y-3">
-          <label className="block text-[12px] font-bold text-gray-400 uppercase tracking-wider">Kategori</label>
-          <div className="grid grid-cols-2 gap-2">
+    <form onSubmit={handleSubmit} className="w-full">
+      <div className="bg-white dark:bg-gray-900 border-b border-gray-100 dark:border-gray-700 shadow-sm">
+        <div className="max-w-[1440px] mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar py-3">
             {CATEGORIES.map(cat => (
-              <button
-                key={cat.id}
-                type="button"
-                onClick={() => { setCategory(cat.id); setSubcategory(''); }}
-                className={cn(
-                  "flex items-center gap-2 p-2.5 rounded-lg border transition-all text-left",
-                  category === cat.id 
-                    ? "border-green-600 bg-green-50 text-green-700" 
-                    : "border-gray-100 hover:border-green-200 hover:bg-gray-50 text-gray-500"
-                )}
-              >
+              <button key={cat.id} type="button" onClick={() => { setCategory(cat.id); setSubcategory(''); }} className={cn("flex items-center gap-2 px-4 py-2.5 rounded-xl whitespace-nowrap transition-all duration-200 text-sm font-semibold", category === cat.id ? "bg-green-600 dark:bg-green-500 text-white shadow-md shadow-green-200 dark:shadow-green-900/30" : "bg-gray-50 dark:bg-gray-800 text-gray-600 dark:text-gray-300 hover:bg-green-50 dark:hover:bg-green-900/30 hover:text-green-700 dark:hover:text-green-400")}>
                 <cat.icon className="h-4 w-4" />
-                <span className="text-[11px] font-bold uppercase tracking-tight">{cat.id}</span>
+                <span>{cat.id}</span>
               </button>
             ))}
           </div>
-        </div>
-
-        {/* Subkategori */}
-        {activeCategory && (
-          <div className="space-y-3 animate-in fade-in slide-in-from-top-2">
-            <label className="block text-[12px] font-bold text-gray-400 uppercase tracking-wider">Jenis {activeCategory.id}</label>
-            <div className="flex flex-wrap gap-1.5">
+          {activeCategory && (
+            <div className="flex items-center gap-2 overflow-x-auto no-scrollbar pb-3">
               {activeCategory.sub.map(sub => (
-                <button
-                  key={sub}
-                  type="button"
-                  onClick={() => setSubcategory(sub)}
-                  className={cn(
-                    "px-3 py-1.5 rounded-lg text-[11px] font-bold border transition-all",
-                    subcategory === sub
-                      ? "bg-green-600 border-green-600 text-white"
-                      : "bg-white border-gray-100 text-gray-600 hover:border-green-600 hover:text-green-600"
-                  )}
-                >
+                <button key={sub} type="button" onClick={() => setSubcategory(sub)} className={cn("px-3.5 py-1.5 rounded-lg text-xs font-semibold border whitespace-nowrap transition-all duration-200", subcategory === sub ? "bg-green-600 dark:bg-green-500 border-green-600 dark:border-green-500 text-white shadow-sm" : "bg-white dark:bg-gray-900 border-gray-200 dark:border-gray-600 text-gray-600 dark:text-gray-300 hover:border-green-400 dark:hover:border-green-500 hover:text-green-600 dark:hover:text-green-400")}>
                   {sub}
                 </button>
               ))}
             </div>
-          </div>
-        )}
-
-        <hr className="border-gray-50" />
-
-        {/* Budget */}
-        <div className="space-y-4">
-          <div className="flex justify-between items-end">
-            <label className="block text-[12px] font-bold text-gray-400 uppercase tracking-wider">Budget Maksimal</label>
-            <span className="text-lg font-bold text-green-600">Rp {budget.toLocaleString('id-ID')}</span>
-          </div>
-          
-          <div className="px-1">
-            <input
-              type="range"
-              min="100000"
-              max="30000000"
-              step="100000"
-              value={budget}
-              onChange={(e) => setBudget(Number(e.target.value))}
-              className="w-full h-1.5 bg-gray-100 rounded-lg appearance-none cursor-pointer accent-green-600"
-            />
-          </div>
-          
-          <div className="flex flex-wrap gap-1.5">
-            {BUDGET_PRESETS.map(preset => (
-              <button
-                key={preset.value}
-                type="button"
-                onClick={() => setBudget(preset.value)}
-                className={cn(
-                  "px-2 py-1 text-[10px] font-bold rounded border transition-all",
-                  budget === preset.value
-                    ? "bg-green-600 border-green-600 text-white"
-                    : "bg-gray-50 border-gray-100 text-gray-500 hover:bg-gray-100"
-                )}
-              >
-                {preset.label}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        <hr className="border-gray-50" />
-
-        {/* Kebutuhan */}
-        <div className="space-y-3">
-          <label className="block text-[12px] font-bold text-gray-400 uppercase tracking-wider">Kebutuhan</label>
-          <div className="flex flex-wrap gap-1.5">
-            {NEEDS.map(need => (
-              <button
-                key={need}
-                type="button"
-                onClick={() => toggleNeed(need)}
-                className={cn(
-                  "px-3 py-1.5 rounded-lg text-[11px] font-bold border transition-all",
-                  selectedNeeds.includes(need)
-                    ? "bg-green-50 border-green-600 text-green-700"
-                    : "bg-white border-gray-100 text-gray-500 hover:border-green-300"
-                )}
-              >
-                {need}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        {/* Detail Tambahan */}
-        <div className="space-y-3">
-          <label className="block text-[12px] font-bold text-gray-400 uppercase tracking-wider">Detail Tambahan</label>
-          <textarea
-            value={detail}
-            onChange={(e) => setDetail(e.target.value)}
-            placeholder="Contoh: Harus warna hitam, baterai awet..."
-            className="w-full p-3 border border-gray-100 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all resize-none h-24 text-xs font-medium bg-gray-50/50"
-          />
+          )}
         </div>
       </div>
 
-      <button
-        type="submit"
-        disabled={isLoading || !category || !subcategory || selectedNeeds.length === 0}
-        className="w-full flex items-center justify-center py-3.5 px-4 border border-transparent rounded-xl shadow-lg shadow-green-100 text-xs font-bold uppercase tracking-widest text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 disabled:opacity-50 disabled:cursor-not-allowed transition-all active:scale-95"
-      >
-        {isLoading ? (
-          <span className="flex items-center">
-            <Loader2 className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" />
-            Memproses...
-          </span>
-        ) : (
-          <span className="flex items-center">
-            <Sparkles className="mr-2 h-4 w-4" />
-            Cari Rekomendasi
-          </span>
-        )}
-      </button>
+      <div className="bg-white dark:bg-gray-900 border-b border-gray-100 dark:border-gray-700">
+        <div className="max-w-[1440px] mx-auto px-4 sm:px-6 lg:px-8">
+          <button type="button" onClick={() => setIsFilterOpen(!isFilterOpen)} className="flex items-center gap-2 py-3 text-sm font-semibold text-gray-600 dark:text-gray-300 hover:text-green-600 dark:hover:text-green-400 transition-colors w-full">
+            <SlidersHorizontal className="w-4 h-4" />
+            <span>Filter Lanjutan</span>
+            {selectedNeeds.length > 0 && (<span className="px-2 py-0.5 bg-green-100 dark:bg-green-900/40 text-green-700 dark:text-green-400 text-xs font-bold rounded-full">{selectedNeeds.length}</span>)}
+            {isFilterOpen ? <ChevronUp className="w-4 h-4 ml-auto" /> : <ChevronDown className="w-4 h-4 ml-auto" />}
+          </button>
+          {isFilterOpen && (
+            <div className="pb-5">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6 p-5 bg-gray-50/80 dark:bg-gray-800/80 rounded-2xl border border-gray-100 dark:border-gray-700">
+                <div className="space-y-3">
+                  <div className="flex justify-between items-center">
+                    <label className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Budget Maksimal</label>
+                    <span className="text-sm font-bold text-green-600 dark:text-green-400">Rp {budget.toLocaleString('id-ID')}</span>
+                  </div>
+                  <input type="range" min="100000" max="30000000" step="100000" value={budget} onChange={(e) => setBudget(Number(e.target.value))} className="w-full" />
+                  <div className="flex flex-wrap gap-1.5">
+                    {BUDGET_PRESETS.map(preset => (
+                      <button key={preset.value} type="button" onClick={() => setBudget(preset.value)} className={cn("px-2.5 py-1 text-[11px] font-bold rounded-lg border transition-all", budget === preset.value ? "bg-green-600 dark:bg-green-500 border-green-600 dark:border-green-500 text-white" : "bg-white dark:bg-gray-900 border-gray-200 dark:border-gray-600 text-gray-500 dark:text-gray-400 hover:border-green-400")}>{preset.label}</button>
+                    ))}
+                  </div>
+                </div>
+                <div className="space-y-3">
+                  <label className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Kebutuhan</label>
+                  <div className="flex flex-wrap gap-2">
+                    {NEEDS.map(need => (
+                      <button key={need} type="button" onClick={() => toggleNeed(need)} className={cn("px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all duration-200", selectedNeeds.includes(need) ? "bg-green-50 dark:bg-green-900/30 border-green-500 dark:border-green-600 text-green-700 dark:text-green-400 shadow-sm" : "bg-white dark:bg-gray-900 border-gray-200 dark:border-gray-600 text-gray-500 dark:text-gray-400 hover:border-green-300 hover:text-green-600 dark:hover:text-green-400")}>{need}</button>
+                    ))}
+                  </div>
+                </div>
+                <div className="space-y-3">
+                  <label className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Detail Tambahan</label>
+                  <textarea value={detail} onChange={(e) => setDetail(e.target.value)} placeholder="Contoh: Harus warna hitam, baterai awet..." className="w-full p-3 border border-gray-200 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all resize-none h-[88px] text-sm bg-white dark:bg-gray-900 text-gray-900 dark:text-white placeholder:text-gray-400 dark:placeholder:text-gray-500" />
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+
+      <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-40">
+        <button type="submit" disabled={isLoading || !category || !subcategory || selectedNeeds.length === 0} className={cn("flex items-center justify-center px-8 py-3.5 rounded-2xl text-sm font-bold text-white shadow-2xl transition-all duration-300 active:scale-95", isLoading || !category || !subcategory || selectedNeeds.length === 0 ? "bg-gray-300 dark:bg-gray-700 cursor-not-allowed shadow-gray-200 dark:shadow-gray-900/30" : "bg-green-600 dark:bg-green-500 hover:bg-green-700 dark:hover:bg-green-600 shadow-green-300/50 dark:shadow-green-900/50 hover:shadow-green-400/60")}>
+          {isLoading ? (<span className="flex items-center"><Loader2 className="animate-spin mr-2 h-4 w-4" />Memproses...</span>) : (<span className="flex items-center"><Sparkles className="mr-2 h-4 w-4" />Cari Rekomendasi</span>)}
+        </button>
+      </div>
     </form>
   );
 }

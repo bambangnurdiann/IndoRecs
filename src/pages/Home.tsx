@@ -6,11 +6,10 @@ import { SearchResult, Product, SearchHistory, WishlistItem } from '../types';
 import { useAuth } from '../contexts/AuthContext';
 import { db } from '../lib/firebase';
 import { collection, addDoc, serverTimestamp, query, where, orderBy, limit, getDocs, deleteDoc, doc } from 'firebase/firestore';
-import { AlertTriangle, ArrowRight, Loader2, X, Search, Sparkles, Megaphone } from 'lucide-react';
+import { AlertTriangle, ArrowRight, Loader2, X, Search, Sparkles, Lightbulb, TrendingUp } from 'lucide-react';
 import { AdPlacement } from '../components/AdPlacement';
-import { convertShopeeUrls } from '../lib/affiliate';
+import { generateShopeeAffiliateLink } from '../lib/affiliate';
 
-// Initialize Gemini API lazily
 let ai: GoogleGenAI | null = null;
 try {
   if (process.env.GEMINI_API_KEY) {
@@ -22,41 +21,27 @@ try {
 
 export default function Home({ activeTab, setActiveTab }: { activeTab: string, setActiveTab: (tab: any) => void }) {
   const { user } = useAuth();
-  
   const [isLoading, setIsLoading] = useState(false);
   const [loadingText, setLoadingText] = useState("Mencari produk terbaik...");
   const [result, setResult] = useState<SearchResult | null>(null);
   const [currentSearchId, setCurrentSearchId] = useState<string | null>(null);
-  
   const [compareList, setCompareList] = useState<Product[]>([]);
   const [showCompareModal, setShowCompareModal] = useState(false);
   const [compareResult, setCompareResult] = useState<any>(null);
   const [isComparing, setIsComparing] = useState(false);
-
   const [wishlist, setWishlist] = useState<WishlistItem[]>([]);
   const [history, setHistory] = useState<SearchHistory[]>([]);
-  const [isConvertingAffiliate, setIsConvertingAffiliate] = useState(false);
 
-  // Fetch History and Wishlist when user changes
   useEffect(() => {
-    if (user) {
-      fetchWishlist();
-      fetchHistory();
-    } else {
-      setWishlist([]);
-      setHistory([]);
-    }
+    if (user) { fetchWishlist(); fetchHistory(); }
+    else { setWishlist([]); setHistory([]); }
   }, [user]);
 
-  // Loading text animation
   useEffect(() => {
     if (!isLoading) return;
     const texts = ["Mencari produk terbaik...", "Membandingkan harga...", "Menyusun rekomendasi..."];
     let i = 0;
-    const interval = setInterval(() => {
-      i = (i + 1) % texts.length;
-      setLoadingText(texts[i]);
-    }, 2000);
+    const interval = setInterval(() => { i = (i + 1) % texts.length; setLoadingText(texts[i]); }, 2000);
     return () => clearInterval(interval);
   }, [isLoading]);
 
@@ -66,13 +51,9 @@ export default function Home({ activeTab, setActiveTab }: { activeTab: string, s
       const q = query(collection(db, 'wishlist'), where('userId', '==', user.uid));
       const querySnapshot = await getDocs(q);
       const items: WishlistItem[] = [];
-      querySnapshot.forEach((doc) => {
-        items.push({ id: doc.id, ...doc.data() } as WishlistItem);
-      });
+      querySnapshot.forEach((doc) => { items.push({ id: doc.id, ...doc.data() } as WishlistItem); });
       setWishlist(items);
-    } catch (error) {
-      console.error("Error fetching wishlist:", error);
-    }
+    } catch (error) { console.error("Error fetching wishlist:", error); }
   };
 
   const fetchHistory = async () => {
@@ -81,25 +62,16 @@ export default function Home({ activeTab, setActiveTab }: { activeTab: string, s
       const q = query(collection(db, 'searches'), where('userId', '==', user.uid), orderBy('createdAt', 'desc'), limit(20));
       const querySnapshot = await getDocs(q);
       const items: SearchHistory[] = [];
-      querySnapshot.forEach((doc) => {
-        items.push({ id: doc.id, ...doc.data() } as SearchHistory);
-      });
+      querySnapshot.forEach((doc) => { items.push({ id: doc.id, ...doc.data() } as SearchHistory); });
       setHistory(items);
-    } catch (error) {
-      console.error("Error fetching history:", error);
-    }
+    } catch (error) { console.error("Error fetching history:", error); }
   };
 
   const handleSearch = async (formData: any) => {
-    if (!ai) {
-      alert("Gemini API Key belum dikonfigurasi.");
-      return;
-    }
-
+    if (!ai) { alert("Gemini API Key belum dikonfigurasi."); return; }
     setIsLoading(true);
     setResult(null);
     setCompareList([]);
-    
     try {
       const prompt = `Carikan rekomendasi produk:
 Kategori: ${formData.category} - ${formData.subcategory}
@@ -129,7 +101,7 @@ Balas HANYA JSON dengan struktur:
       "best_for": "cocok untuk siapa",
       "not_for": "tidak cocok untuk siapa",
       "tokopedia_url": "https://www.tokopedia.com/search?st=product&q=KEYWORD",
-      "shopee_url": "https://shopee.co.id/product-name-i.SHOPID.ITEMID (link spesifik produk, BUKAN search link)",
+      "shopee_url": "https://shopee.co.id/product-name-i.SHOPID.ITEMID",
       "whatsapp_text": "teks share whatsapp"
     }
   ],
@@ -138,84 +110,26 @@ Balas HANYA JSON dengan struktur:
 }
 Kembalikan tepat 3 produk. You are IndoRecs, an expert product recommendation assistant for Indonesian consumers. Always respond ONLY in valid JSON, no markdown, no backticks. All products must be real and available in Indonesia. Respond in Bahasa Indonesia.`;
 
-      const response = await ai.models.generateContent({
-        model: 'gemini-3-flash-preview',
-        contents: prompt,
-        config: {
-          responseMimeType: "application/json",
-        }
-      });
-
+      const response = await ai.models.generateContent({ model: 'gemini-3-flash-preview', contents: prompt, config: { responseMimeType: "application/json" } });
       const text = response.text;
       if (!text) throw new Error("Empty response");
-      
       const parsedResult = JSON.parse(text) as SearchResult;
+      parsedResult.products = parsedResult.products.map(p => ({ ...p, affiliate_url: generateShopeeAffiliateLink(p.name) }));
       setResult(parsedResult);
-
-      // Convert Shopee URLs to affiliate links
-      const shopeeUrls = parsedResult.products
-        .map((p) => p.shopee_url)
-        .filter((url) => url && url.includes('shopee.co.id'));
-
-      if (shopeeUrls.length > 0) {
-        setIsConvertingAffiliate(true);
-        try {
-          const affiliateLinks = await convertShopeeUrls(shopeeUrls);
-          const updatedProducts = parsedResult.products.map((product) => ({
-            ...product,
-            affiliate_url: affiliateLinks[product.shopee_url] || null,
-          }));
-          const updatedResult = { ...parsedResult, products: updatedProducts };
-          setResult(updatedResult);
-          // Use updated result for history save
-          parsedResult.products = updatedProducts;
-        } catch (error) {
-          console.error('Affiliate conversion failed:', error);
-          // Non-blocking: products still show with original Shopee URLs
-        } finally {
-          setIsConvertingAffiliate(false);
-        }
-      }
-
-      // Save to history if logged in
-      if (user) {
-        const docRef = await addDoc(collection(db, 'searches'), {
-          userId: user.uid,
-          ...formData,
-          results: parsedResult,
-          createdAt: serverTimestamp()
-        });
-        setCurrentSearchId(docRef.id);
-        fetchHistory();
-      } else {
-        setCurrentSearchId(null);
-      }
-
-    } catch (error) {
-      console.error("Search error:", error);
-      alert("Terjadi kesalahan saat mencari rekomendasi. Silakan coba lagi.");
-    } finally {
-      setIsLoading(false);
-    }
+      if (user) { const docRef = await addDoc(collection(db, 'searches'), { userId: user.uid, ...formData, results: parsedResult, createdAt: serverTimestamp() }); setCurrentSearchId(docRef.id); fetchHistory(); }
+      else { setCurrentSearchId(null); }
+    } catch (error) { console.error("Search error:", error); alert("Terjadi kesalahan saat mencari rekomendasi. Silakan coba lagi."); }
+    finally { setIsLoading(false); }
   };
 
   const handleCompareToggle = (product: Product, isSelected: boolean) => {
-    if (isSelected) {
-      if (compareList.length >= 3) {
-        alert("Maksimal membandingkan 3 produk");
-        return;
-      }
-      setCompareList([...compareList, product]);
-    } else {
-      setCompareList(compareList.filter(p => p.name !== product.name));
-    }
+    if (isSelected) { if (compareList.length >= 3) { alert("Maksimal membandingkan 3 produk"); return; } setCompareList([...compareList, product]); }
+    else { setCompareList(compareList.filter(p => p.name !== product.name)); }
   };
 
   const handleCompare = async () => {
     if (!ai || compareList.length < 2) return;
-    setIsComparing(true);
-    setShowCompareModal(true);
-    
+    setIsComparing(true); setShowCompareModal(true);
     try {
       const prompt = `Bandingkan produk berikut:
 Produk: ${compareList.map(p => p.name).join(', ')}
@@ -225,97 +139,46 @@ Balas HANYA JSON:
   "winner": "nama produk pemenang",
   "winner_reason": "alasan singkat",
   "comparison": [
-    {
-      "aspect": "Performa",
-      "scores": {
-        "${compareList[0]?.name || 'P1'}": {"score": 8, "note": "penjelasan"},
-        "${compareList[1]?.name || 'P2'}": {"score": 6, "note": "penjelasan"}
-      }
-    },
-    {"aspect": "Nilai Harga", "scores": {}},
-    {"aspect": "Build Quality", "scores": {}},
-    {"aspect": "Cocok untuk Kebutuhan", "scores": {}},
-    {"aspect": "Ketersediaan Servis", "scores": {}}
+    { "aspect": "Performa", "scores": { "${compareList[0]?.name || 'P1'}": {"score": 8, "note": "penjelasan"}, "${compareList[1]?.name || 'P2'}": {"score": 6, "note": "penjelasan"} } },
+    {"aspect": "Nilai Harga", "scores": {}}, {"aspect": "Build Quality", "scores": {}}, {"aspect": "Cocok untuk Kebutuhan", "scores": {}}, {"aspect": "Ketersediaan Servis", "scores": {}}
   ],
-  "verdict": {
-    "${compareList[0]?.name || 'P1'}": "cocok untuk siapa",
-    "${compareList[1]?.name || 'P2'}": "cocok untuk siapa"
-  }
+  "verdict": { "${compareList[0]?.name || 'P1'}": "cocok untuk siapa", "${compareList[1]?.name || 'P2'}": "cocok untuk siapa" }
 }
 Always respond ONLY in valid JSON, no markdown, no backticks. Respond in Bahasa Indonesia.`;
-
-      const response = await ai.models.generateContent({
-        model: 'gemini-3-flash-preview',
-        contents: prompt,
-        config: { responseMimeType: "application/json" }
-      });
-
-      const text = response.text;
-      if (text) {
-        setCompareResult(JSON.parse(text));
-      }
-    } catch (error) {
-      console.error("Compare error:", error);
-      setShowCompareModal(false);
-    } finally {
-      setIsComparing(false);
-    }
+      const response = await ai.models.generateContent({ model: 'gemini-3-flash-preview', contents: prompt, config: { responseMimeType: "application/json" } });
+      const text = response.text; if (text) { setCompareResult(JSON.parse(text)); }
+    } catch (error) { console.error("Compare error:", error); setShowCompareModal(false); }
+    finally { setIsComparing(false); }
   };
 
   const handleWishlistToggle = async (product: Product) => {
     if (!user) return;
     const existing = wishlist.find(w => w.product.name === product.name);
-    
-    if (existing) {
-      await deleteDoc(doc(db, 'wishlist', existing.id));
-      setWishlist(wishlist.filter(w => w.id !== existing.id));
-    } else {
-      const docRef = await addDoc(collection(db, 'wishlist'), {
-        userId: user.uid,
-        product,
-        savedAt: serverTimestamp()
-      });
-      setWishlist([...wishlist, { id: docRef.id, userId: user.uid, product, savedAt: new Date() }]);
-    }
+    if (existing) { await deleteDoc(doc(db, 'wishlist', existing.id)); setWishlist(wishlist.filter(w => w.id !== existing.id)); }
+    else { const docRef = await addDoc(collection(db, 'wishlist'), { userId: user.uid, product, savedAt: serverTimestamp() }); setWishlist([...wishlist, { id: docRef.id, userId: user.uid, product, savedAt: new Date() }]); }
   };
 
   const handleFeedback = async (productName: string, helpful: boolean) => {
-    if (!user) {
-      alert("Login untuk memberikan feedback");
-      return;
-    }
-    try {
-      await addDoc(collection(db, 'feedback'), {
-        userId: user.uid,
-        searchId: currentSearchId || 'unknown',
-        productName,
-        helpful,
-        createdAt: serverTimestamp()
-      });
-      alert("Terima kasih atas feedback Anda!");
-    } catch (error) {
-      console.error("Feedback error:", error);
-    }
+    if (!user) { alert("Login untuk memberikan feedback"); return; }
+    try { await addDoc(collection(db, 'feedback'), { userId: user.uid, searchId: currentSearchId || 'unknown', productName, helpful, createdAt: serverTimestamp() }); alert("Terima kasih atas feedback Anda!"); }
+    catch (error) { console.error("Feedback error:", error); }
   };
 
   const renderSkeleton = () => (
     <div className="space-y-8">
-      <div className="text-center py-8">
-        <Loader2 className="w-10 h-10 text-green-600 animate-spin mx-auto mb-4" />
-        <p className="text-lg font-medium text-gray-700 animate-pulse">{loadingText}</p>
+      <div className="text-center py-12">
+        <Loader2 className="w-10 h-10 text-green-600 dark:text-green-400 animate-spin mx-auto mb-4" />
+        <p className="text-lg font-medium text-gray-700 dark:text-gray-200 animate-pulse">{loadingText}</p>
       </div>
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
         {[1, 2, 3].map(i => (
-          <div key={i} className="bg-white rounded-xl shadow-sm border border-gray-100 p-5 animate-pulse">
-            <div className="h-4 bg-gray-200 rounded w-1/4 mb-4"></div>
-            <div className="h-6 bg-gray-200 rounded w-3/4 mb-2"></div>
-            <div className="h-4 bg-gray-200 rounded w-1/2 mb-6"></div>
-            <div className="h-8 bg-gray-200 rounded w-full mb-4"></div>
-            <div className="space-y-2 mb-6">
-              <div className="h-3 bg-gray-200 rounded w-full"></div>
-              <div className="h-3 bg-gray-200 rounded w-5/6"></div>
-            </div>
-            <div className="h-10 bg-gray-200 rounded w-full"></div>
+          <div key={i} className="bg-white dark:bg-gray-900 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 p-5 animate-pulse">
+            <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-1/4 mb-4"></div>
+            <div className="h-6 bg-gray-200 dark:bg-gray-700 rounded w-3/4 mb-2"></div>
+            <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-1/2 mb-6"></div>
+            <div className="h-8 bg-gray-200 dark:bg-gray-700 rounded w-full mb-4"></div>
+            <div className="space-y-2 mb-6"><div className="h-3 bg-gray-200 dark:bg-gray-700 rounded w-full"></div><div className="h-3 bg-gray-200 dark:bg-gray-700 rounded w-5/6"></div></div>
+            <div className="h-10 bg-gray-200 dark:bg-gray-700 rounded w-full"></div>
           </div>
         ))}
       </div>
@@ -324,276 +187,172 @@ Always respond ONLY in valid JSON, no markdown, no backticks. Respond in Bahasa 
 
   return (
     <>
+      {activeTab === 'search' && (<SearchForm onSubmit={handleSearch} isLoading={isLoading} />)}
       <main className="max-w-[1440px] mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Top Banner Ad */}
         <AdPlacement placement="top_banner" className="mb-8 h-24 md:h-32" />
         {!user && activeTab !== 'search' && (
-          <div className="bg-yellow-50 border-l-4 border-yellow-400 p-4 mb-8 rounded-r-md">
+          <div className="bg-yellow-50 dark:bg-yellow-900/30 border-l-4 border-yellow-400 dark:border-yellow-500 p-4 mb-8 rounded-r-md">
             <div className="flex">
-              <div className="flex-shrink-0">
-                <AlertTriangle className="h-5 w-5 text-yellow-400" />
-              </div>
-              <div className="ml-3">
-                <p className="text-sm text-yellow-700">
-                  Anda belum login. <button onClick={() => {}} className="font-medium underline hover:text-yellow-600">Login sekarang</button> untuk menyimpan riwayat dan wishlist.
-                </p>
-              </div>
+              <AlertTriangle className="h-5 w-5 text-yellow-400 dark:text-yellow-500 flex-shrink-0" />
+              <p className="ml-3 text-sm text-yellow-700 dark:text-yellow-300">Anda belum login. <button className="font-medium underline hover:text-yellow-600 dark:hover:text-yellow-400">Login sekarang</button> untuk menyimpan riwayat dan wishlist.</p>
             </div>
           </div>
         )}
-
         {activeTab === 'search' && (
-          <div className="flex flex-col lg:flex-row gap-8 items-start">
-            <aside className="w-full lg:w-[300px] lg:sticky lg:top-24 flex-shrink-0 space-y-6">
-              <SearchForm onSubmit={handleSearch} isLoading={isLoading} />
-              
-              {/* Sidebar Ad */}
-              <AdPlacement placement="right_sidebar" className="min-h-[250px]" />
-            </aside>
-            
-            <div className="flex-1 min-w-0">
-              {isLoading ? (
-                renderSkeleton()
-              ) : result ? (
-                <div className="space-y-8">
-                  {/* Sponsored Product Ad */}
-                  <AdPlacement placement="sponsored" className="mb-8" />
-                  {result.budget_warning && (
-                    <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-4 flex items-start">
-                      <AlertTriangle className="w-5 h-5 text-yellow-600 mt-0.5 mr-3 flex-shrink-0" />
-                      <p className="text-sm text-yellow-800">{result.budget_warning_message}</p>
-                    </div>
-                  )}
-                  
-                  <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
-                    <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
-                      <div>
-                        <h2 className="text-2xl font-bold text-gray-900 tracking-tight">Ringkasan Rekomendasi</h2>
-                        <p className="text-sm text-gray-500 mt-1">Berdasarkan kriteria yang Anda berikan</p>
-                      </div>
-                      <div className="flex items-center gap-3">
-                        <div className="flex items-center gap-2 px-3 py-1.5 bg-gray-50 rounded-lg border border-gray-100">
-                          <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Sort by:</span>
-                          <select className="text-xs font-bold text-gray-700 bg-transparent border-none focus:ring-0 cursor-pointer">
-                            <option>Match Score Tertinggi</option>
-                            <option>Harga Terendah</option>
-                            <option>Best Value</option>
-                          </select>
-                        </div>
-                        <label className="flex items-center space-x-2 text-xs font-bold text-gray-500 cursor-pointer hover:text-green-600 transition-colors">
-                          <input type="checkbox" className="rounded border-gray-300 text-green-600 focus:ring-green-500" />
-                          <span>Produk Baru Only</span>
-                        </label>
-                      </div>
-                    </div>
-                    <div className="bg-green-50/50 border border-green-100 p-4 rounded-xl">
-                      <p className="text-gray-700 text-sm leading-relaxed">
-                        <Sparkles className="inline-block w-4 h-4 mr-2 text-green-600 mb-1" />
-                        {result.summary}
-                      </p>
+          <div className="space-y-8">
+            {isLoading ? renderSkeleton() : result ? (
+              <div className="space-y-8">
+                {result.budget_warning && (
+                  <div className="bg-yellow-50 dark:bg-yellow-900/30 border border-yellow-200 dark:border-yellow-700 rounded-xl p-4 flex items-start">
+                    <AlertTriangle className="w-5 h-5 text-yellow-600 dark:text-yellow-400 mt-0.5 mr-3 flex-shrink-0" />
+                    <p className="text-sm text-yellow-800 dark:text-yellow-200">{result.budget_warning_message}</p>
+                  </div>
+                )}
+                <div className="bg-white dark:bg-gray-900 rounded-2xl p-6 shadow-sm border border-gray-100 dark:border-gray-700">
+                  <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-4">
+                    <div>
+                      <h2 className="text-2xl font-bold text-gray-900 dark:text-white tracking-tight">Ringkasan Rekomendasi</h2>
+                      <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">Berdasarkan kriteria yang Anda berikan</p>
                     </div>
                   </div>
-
-                  <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-                    {result.products.map((product, idx) => (
-                      <React.Fragment key={idx}>
-                        <ProductCard 
-                          product={product} 
-                          onCompareToggle={handleCompareToggle}
-                          isCompared={compareList.some(p => p.name === product.name)}
-                          onWishlistToggle={handleWishlistToggle}
-                          isWishlisted={wishlist.some(w => w.product.name === product.name)}
-                          onFeedback={handleFeedback}
-                          isConvertingAffiliate={isConvertingAffiliate}
-                        />
-                        {/* Inline Ad after 2nd product */}
-                        {idx === 1 && (
-                          <div className="md:col-span-2 xl:col-span-1">
-                            <AdPlacement placement="inline" className="h-full min-h-[300px]" />
-                          </div>
-                        )}
-                      </React.Fragment>
-                    ))}
+                  <div className="bg-green-50/50 dark:bg-green-900/20 border border-green-100 dark:border-green-800 p-4 rounded-xl">
+                    <p className="text-gray-700 dark:text-gray-200 text-sm leading-relaxed">
+                      <Sparkles className="inline-block w-4 h-4 mr-2 text-green-600 dark:text-green-400 mb-0.5" />
+                      {result.summary}
+                    </p>
                   </div>
-
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-12">
-                    <div className="bg-blue-50/50 rounded-2xl p-6 border border-blue-100 shadow-sm shadow-blue-50">
-                      <div className="flex items-center gap-2 mb-4">
-                        <div className="p-2 bg-blue-100 rounded-lg">
-                          <Sparkles className="w-5 h-5 text-blue-600" />
-                        </div>
-                        <h3 className="font-black text-blue-900 uppercase tracking-wider text-xs">Tips Pembelian</h3>
-                      </div>
-                      <p className="text-sm text-blue-800 leading-relaxed font-medium">{result.tips}</p>
+                </div>
+                <div className="bg-gradient-to-r from-blue-50 via-indigo-50 to-purple-50 dark:from-blue-900/20 dark:via-indigo-900/20 dark:to-purple-900/20 rounded-2xl p-6 border border-blue-100/50 dark:border-blue-800/50">
+                  <div className="flex items-center gap-2 mb-4">
+                    <div className="p-2 bg-white dark:bg-gray-800 rounded-xl shadow-sm">
+                      <Sparkles className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
                     </div>
-                    <div className="bg-purple-50/50 rounded-2xl p-6 border border-purple-100 shadow-sm shadow-purple-50">
-                      <div className="flex items-center gap-2 mb-4">
-                        <div className="p-2 bg-purple-100 rounded-lg">
-                          <AlertTriangle className="w-5 h-5 text-purple-600" />
-                        </div>
-                        <h3 className="font-black text-purple-900 uppercase tracking-wider text-xs">Alternatif Budget</h3>
+                    <h3 className="text-base font-bold text-gray-900 dark:text-white">Asisten Belanja IndoRecs</h3>
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="bg-white/70 dark:bg-gray-800/70 backdrop-blur-sm rounded-xl p-4 border border-blue-100 dark:border-blue-800">
+                      <div className="flex items-center gap-2 mb-2">
+                        <Lightbulb className="w-4 h-4 text-amber-500 dark:text-amber-400" />
+                        <span className="text-xs font-bold text-gray-700 dark:text-gray-200 uppercase tracking-wider">Tips Pembelian</span>
                       </div>
-                      <p className="text-sm text-purple-800 leading-relaxed font-medium">{result.alternative_suggestion}</p>
+                      <p className="text-sm text-gray-600 dark:text-gray-300 leading-relaxed">{result.tips}</p>
+                    </div>
+                    <div className="bg-white/70 dark:bg-gray-800/70 backdrop-blur-sm rounded-xl p-4 border border-purple-100 dark:border-purple-800">
+                      <div className="flex items-center gap-2 mb-2">
+                        <TrendingUp className="w-4 h-4 text-purple-500 dark:text-purple-400" />
+                        <span className="text-xs font-bold text-gray-700 dark:text-gray-200 uppercase tracking-wider">Alternatif Budget</span>
+                      </div>
+                      <p className="text-sm text-gray-600 dark:text-gray-300 leading-relaxed">{result.alternative_suggestion}</p>
                     </div>
                   </div>
                 </div>
-              ) : (
-                <div className="h-full flex flex-col items-center justify-center text-center p-12 bg-white rounded-xl border border-gray-100 border-dashed">
-                  <div className="w-16 h-16 bg-green-50 rounded-full flex items-center justify-center mb-4">
-                    <Search className="w-8 h-8 text-green-600" />
-                  </div>
-                  <h3 className="text-lg font-bold text-gray-900 mb-2">Mulai Pencarian</h3>
-                  <p className="text-gray-500 max-w-md">Isi form di sebelah kiri untuk mendapatkan rekomendasi produk terbaik yang disesuaikan dengan kebutuhan dan budget Anda.</p>
+                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+                  {result.products.map((product, idx) => (
+                    <ProductCard key={idx} product={product} onCompareToggle={handleCompareToggle} isCompared={compareList.some(p => p.name === product.name)} onWishlistToggle={handleWishlistToggle} isWishlisted={wishlist.some(w => w.product.name === product.name)} onFeedback={handleFeedback} />
+                  ))}
                 </div>
-              )}
-            </div>
+              </div>
+            ) : (
+              <div className="h-[50vh] flex flex-col items-center justify-center text-center p-12 bg-white dark:bg-gray-900 rounded-2xl border border-gray-100 dark:border-gray-700 border-dashed">
+                <div className="w-16 h-16 bg-green-50 dark:bg-green-900/30 rounded-full flex items-center justify-center mb-4">
+                  <Search className="w-8 h-8 text-green-600 dark:text-green-400" />
+                </div>
+                <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-2">Mulai Pencarian</h3>
+                <p className="text-gray-500 dark:text-gray-400 max-w-md">Pilih kategori di atas dan atur filter untuk mendapatkan rekomendasi produk terbaik yang disesuaikan dengan kebutuhan dan budget Anda.</p>
+              </div>
+            )}
           </div>
         )}
 
         {activeTab === 'history' && user && (
           <div className="space-y-6">
-            <h2 className="text-2xl font-bold text-gray-900">Riwayat Pencarian</h2>
+            <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Riwayat Pencarian</h2>
             {history.length === 0 ? (
-              <p className="text-gray-500">Belum ada riwayat pencarian.</p>
+              <p className="text-gray-500 dark:text-gray-400">Belum ada riwayat pencarian.</p>
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 {history.map(item => (
-                  <div key={item.id} className="bg-white p-5 rounded-xl shadow-sm border border-gray-100 cursor-pointer hover:border-green-300 transition-colors" onClick={() => { setResult(item.results); setActiveTab('search'); }}>
+                  <div key={item.id} className="bg-white dark:bg-gray-900 p-5 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 cursor-pointer hover:border-green-300 dark:hover:border-green-600 hover:shadow-md transition-all" onClick={() => { setResult(item.results); setActiveTab('search'); }}>
                     <div className="flex justify-between items-start mb-2">
-                      <span className="text-xs font-semibold text-green-600 bg-green-50 px-2 py-1 rounded">{item.category}</span>
-                      <span className="text-xs text-gray-400">{new Date(item.createdAt?.toDate?.() || Date.now()).toLocaleDateString('id-ID')}</span>
+                      <span className="text-xs font-semibold text-green-600 dark:text-green-400 bg-green-50 dark:bg-green-900/30 px-2 py-1 rounded-lg">{item.category}</span>
+                      <span className="text-xs text-gray-400 dark:text-gray-500">{new Date(item.createdAt?.toDate?.() || Date.now()).toLocaleDateString('id-ID')}</span>
                     </div>
-                    <h3 className="font-bold text-gray-900 mb-1">{item.subcategory}</h3>
-                    <p className="text-sm text-gray-500 mb-2">Budget: {item.budget}</p>
-                    <p className="text-xs text-gray-600 line-clamp-2">{item.results.summary}</p>
+                    <h3 className="font-bold text-gray-900 dark:text-white mb-1">{item.subcategory}</h3>
+                    <p className="text-sm text-gray-500 dark:text-gray-400 mb-2">Budget: {item.budget}</p>
+                    <p className="text-xs text-gray-600 dark:text-gray-300 line-clamp-2">{item.results.summary}</p>
                   </div>
                 ))}
               </div>
             )}
           </div>
         )}
-
         {activeTab === 'wishlist' && user && (
           <div className="space-y-6">
-            <h2 className="text-2xl font-bold text-gray-900">Wishlist Saya</h2>
+            <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Wishlist Saya</h2>
             {wishlist.length === 0 ? (
-              <p className="text-gray-500">Belum ada produk di wishlist.</p>
+              <p className="text-gray-500 dark:text-gray-400">Belum ada produk di wishlist.</p>
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {wishlist.map(item => (
-                  <ProductCard 
-                    key={item.id} 
-                    product={item.product} 
-                    onCompareToggle={handleCompareToggle}
-                    isCompared={compareList.some(p => p.name === item.product.name)}
-                    onWishlistToggle={handleWishlistToggle}
-                    isWishlisted={true}
-                    onFeedback={handleFeedback}
-                  />
+                  <ProductCard key={item.id} product={item.product} onCompareToggle={handleCompareToggle} isCompared={compareList.some(p => p.name === item.product.name)} onWishlistToggle={handleWishlistToggle} isWishlisted={true} onFeedback={handleFeedback} />
                 ))}
               </div>
             )}
           </div>
         )}
       </main>
-
-      {/* Floating Compare Bar */}
       {compareList.length > 0 && (
-        <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.1)] p-4 z-40 animate-in slide-in-from-bottom-full duration-300">
+        <div className="fixed bottom-0 left-0 right-0 bg-white dark:bg-gray-900 border-t border-gray-200 dark:border-gray-700 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.1)] dark:shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.4)] p-4 z-40">
           <div className="max-w-[1440px] mx-auto flex flex-col sm:flex-row items-center justify-between gap-4">
             <div className="flex items-center gap-3 min-w-0 w-full sm:w-auto">
-              <div className="flex-shrink-0 bg-green-50 text-green-700 px-3 py-1 rounded-full text-xs font-bold">
-                {compareList.length}
-              </div>
-              <span className="font-bold text-gray-900 text-sm hidden xs:block">Produk dipilih</span>
-              <div className="flex gap-1.5 overflow-x-auto no-scrollbar pb-1 sm:pb-0">
-                {compareList.map(p => (
-                  <span key={p.name} className="flex-shrink-0 text-[10px] font-bold bg-gray-50 border border-gray-100 px-2 py-1 rounded-lg max-w-[100px] truncate text-gray-600">
-                    {p.name}
-                  </span>
-                ))}
+              <div className="flex-shrink-0 bg-green-50 dark:bg-green-900/30 text-green-700 dark:text-green-400 px-3 py-1 rounded-full text-xs font-bold">{compareList.length}</div>
+              <span className="font-bold text-gray-900 dark:text-white text-sm hidden sm:block">Produk dipilih</span>
+              <div className="flex gap-1.5 overflow-x-auto no-scrollbar">
+                {compareList.map(p => (<span key={p.name} className="flex-shrink-0 text-[10px] font-bold bg-gray-50 dark:bg-gray-800 border border-gray-100 dark:border-gray-700 px-2 py-1 rounded-lg max-w-[100px] truncate text-gray-600 dark:text-gray-300">{p.name}</span>))}
               </div>
             </div>
             <div className="flex items-center gap-2 w-full sm:w-auto">
-              <button 
-                onClick={() => setCompareList([])}
-                className="flex-1 sm:flex-none px-4 py-2.5 text-xs font-bold text-gray-500 hover:text-gray-900 transition-colors"
-              >
-                Batal
-              </button>
-              <button 
-                onClick={handleCompare}
-                disabled={compareList.length < 2}
-                className="flex-[2] sm:flex-none px-6 py-2.5 bg-green-600 text-white text-xs font-black uppercase tracking-widest rounded-xl hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center shadow-lg shadow-green-100 transition-all active:scale-95"
-              >
-                Bandingkan <ArrowRight className="w-4 h-4 ml-2" />
-              </button>
+              <button onClick={() => setCompareList([])} className="flex-1 sm:flex-none px-4 py-2.5 text-xs font-bold text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors">Batal</button>
+              <button onClick={handleCompare} disabled={compareList.length < 2} className="flex-[2] sm:flex-none px-6 py-2.5 bg-green-600 dark:bg-green-500 text-white text-xs font-bold uppercase tracking-wider rounded-xl hover:bg-green-700 dark:hover:bg-green-600 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center shadow-lg shadow-green-100 dark:shadow-green-900/30 transition-all active:scale-95">Bandingkan <ArrowRight className="w-4 h-4 ml-2" /></button>
             </div>
           </div>
         </div>
       )}
-
-      {/* Compare Modal */}
       {showCompareModal && (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl shadow-xl w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col">
-            <div className="p-4 border-b border-gray-100 flex justify-between items-center bg-gray-50">
-              <h2 className="text-xl font-bold text-gray-900">Perbandingan Produk</h2>
-              <button onClick={() => setShowCompareModal(false)} className="p-2 text-gray-400 hover:text-gray-600 rounded-full hover:bg-gray-200">
-                <X className="w-5 h-5" />
-              </button>
+          <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-xl w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col">
+            <div className="p-4 border-b border-gray-100 dark:border-gray-700 flex justify-between items-center bg-gray-50 dark:bg-gray-800">
+              <h2 className="text-xl font-bold text-gray-900 dark:text-white">Perbandingan Produk</h2>
+              <button onClick={() => setShowCompareModal(false)} className="p-2 text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700"><X className="w-5 h-5" /></button>
             </div>
-            
             <div className="p-6 overflow-y-auto">
               {isComparing ? (
-                <div className="text-center py-12">
-                  <Loader2 className="w-12 h-12 text-green-600 animate-spin mx-auto mb-4" />
-                  <p className="text-lg font-medium text-gray-700">Menganalisis perbandingan...</p>
-                </div>
+                <div className="text-center py-12"><Loader2 className="w-12 h-12 text-green-600 dark:text-green-400 animate-spin mx-auto mb-4" /><p className="text-lg font-medium text-gray-700 dark:text-gray-200">Menganalisis perbandingan...</p></div>
               ) : compareResult ? (
                 <div className="space-y-8">
-                  <div className="bg-green-50 border border-green-200 rounded-xl p-5 text-center">
-                    <h3 className="text-sm font-bold text-green-800 uppercase tracking-wider mb-1">Pemenang Keseluruhan</h3>
-                    <p className="text-2xl font-extrabold text-green-900 mb-2">{compareResult.winner}</p>
-                    <p className="text-green-700 text-sm">{compareResult.winner_reason}</p>
+                  <div className="bg-green-50 dark:bg-green-900/30 border border-green-200 dark:border-green-700 rounded-xl p-5 text-center">
+                    <h3 className="text-sm font-bold text-green-800 dark:text-green-300 uppercase tracking-wider mb-1">Pemenang Keseluruhan</h3>
+                    <p className="text-2xl font-extrabold text-green-900 dark:text-green-200 mb-2">{compareResult.winner}</p>
+                    <p className="text-green-700 dark:text-green-400 text-sm">{compareResult.winner_reason}</p>
                   </div>
-
                   <div className="overflow-x-auto">
                     <table className="w-full text-left border-collapse">
-                      <thead>
-                        <tr>
-                          <th className="p-3 border-b-2 border-gray-200 bg-gray-50 font-semibold text-gray-600">Aspek</th>
-                          {compareList.map(p => (
-                            <th key={p.name} className="p-3 border-b-2 border-gray-200 bg-gray-50 font-bold text-gray-900 w-1/3">{p.name}</th>
-                          ))}
-                        </tr>
-                      </thead>
+                      <thead><tr><th className="p-3 border-b-2 border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-800 font-semibold text-gray-600 dark:text-gray-300">Aspek</th>{compareList.map(p => (<th key={p.name} className="p-3 border-b-2 border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-800 font-bold text-gray-900 dark:text-white w-1/3">{p.name}</th>))}</tr></thead>
                       <tbody>
                         {compareResult.comparison.map((comp: any, i: number) => (
-                          <tr key={i} className="border-b border-gray-100 hover:bg-gray-50">
-                            <td className="p-3 font-medium text-gray-900">{comp.aspect}</td>
-                            {compareList.map(p => {
-                              const scoreData = comp.scores[p.name] || { score: '-', note: '-' };
-                              return (
-                                <td key={p.name} className="p-3">
-                                  <div className="flex items-center mb-1">
-                                    <span className="font-bold text-green-600 mr-2">{scoreData.score}/10</span>
-                                  </div>
-                                  <p className="text-xs text-gray-600">{scoreData.note}</p>
-                                </td>
-                              );
-                            })}
+                          <tr key={i} className="border-b border-gray-100 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800">
+                            <td className="p-3 font-medium text-gray-900 dark:text-white">{comp.aspect}</td>
+                            {compareList.map(p => { const scoreData = comp.scores[p.name] || { score: '-', note: '-' }; return (<td key={p.name} className="p-3"><div className="flex items-center mb-1"><span className="font-bold text-green-600 dark:text-green-400 mr-2">{scoreData.score}/10</span></div><p className="text-xs text-gray-600 dark:text-gray-400">{scoreData.note}</p></td>); })}
                           </tr>
                         ))}
                       </tbody>
                     </table>
                   </div>
-
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     {Object.entries(compareResult.verdict).map(([productName, verdict]: any) => (
-                      <div key={productName} className="bg-gray-50 p-4 rounded-lg border border-gray-200">
-                        <h4 className="font-bold text-gray-900 mb-1">{productName}</h4>
-                        <p className="text-sm text-gray-600">{verdict}</p>
+                      <div key={productName} className="bg-gray-50 dark:bg-gray-800 p-4 rounded-xl border border-gray-200 dark:border-gray-700">
+                        <h4 className="font-bold text-gray-900 dark:text-white mb-1">{productName}</h4>
+                        <p className="text-sm text-gray-600 dark:text-gray-300">{verdict}</p>
                       </div>
                     ))}
                   </div>

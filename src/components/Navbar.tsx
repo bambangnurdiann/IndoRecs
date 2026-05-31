@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
-import { LogIn, LogOut, History, Heart, Search, Menu, X, LayoutDashboard } from 'lucide-react';
+import { useTheme } from '../contexts/ThemeContext';
+import { LogIn, LogOut, History, Heart, Search, Menu, X, LayoutDashboard, Sun, Moon } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { Link, useLocation } from 'react-router-dom';
 
@@ -11,6 +12,7 @@ interface NavbarProps {
 
 export function Navbar({ activeTab, setActiveTab }: NavbarProps) {
   const { user, loginWithGoogle, logout } = useAuth();
+  const { isDark, toggleTheme } = useTheme();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const location = useLocation();
   const isAdmin = user && (user.email?.toLowerCase() === 'bambangnurdiann@gmail.com');
@@ -29,7 +31,7 @@ export function Navbar({ activeTab, setActiveTab }: NavbarProps) {
   const isAdminPage = location.pathname.startsWith('/admin');
 
   return (
-    <nav className="bg-white border-b border-gray-100 sticky top-0 z-50 w-full">
+    <nav className="bg-white dark:bg-gray-900 border-b border-gray-100 dark:border-gray-700 sticky top-0 z-50 w-full">
       <div className="max-w-[1440px] mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center h-16 md:h-20">
           {/* Logo */}
@@ -38,11 +40,11 @@ export function Navbar({ activeTab, setActiveTab }: NavbarProps) {
             className="flex items-center cursor-pointer group min-w-0" 
             onClick={() => handleTabClick('search')}
           >
-            <div className="p-2 bg-green-50 rounded-xl group-hover:bg-green-100 transition-colors">
-              <Search className="h-6 w-6 md:h-7 md:w-7 text-green-600" />
+            <div className="p-2 bg-green-50 dark:bg-green-900/30 rounded-xl group-hover:bg-green-100 dark:group-hover:bg-green-900/50 transition-colors">
+              <Search className="h-6 w-6 md:h-7 md:w-7 text-green-600 dark:text-green-400" />
             </div>
-            <span className="ml-3 text-lg md:text-xl font-black text-gray-900 tracking-tight truncate">
-              Indo<span className="text-green-600">Recs</span>
+            <span className="ml-3 text-lg md:text-xl font-black text-gray-900 dark:text-white tracking-tight truncate">
+              Indo<span className="text-green-600 dark:text-green-400">Recs</span>
             </span>
           </Link>
 
@@ -57,11 +59,11 @@ export function Navbar({ activeTab, setActiveTab }: NavbarProps) {
                     className={cn(
                       "flex items-center px-4 py-2.5 rounded-xl text-[14px] lg:text-[15px] font-semibold transition-all duration-200",
                       activeTab === item.id
-                        ? "text-green-700 bg-green-50"
-                        : "text-gray-600 hover:text-green-600 hover:bg-gray-50"
+                        ? "text-green-700 dark:text-green-400 bg-green-50 dark:bg-green-900/30"
+                        : "text-gray-600 dark:text-gray-300 hover:text-green-600 dark:hover:text-green-400 hover:bg-gray-50 dark:hover:bg-gray-800"
                     )}
                   >
-                    <item.icon className={cn("h-4 w-4 mr-2", activeTab === item.id ? "text-green-600" : "text-gray-400")} />
+                    <item.icon className={cn("h-4 w-4 mr-2", activeTab === item.id ? "text-green-600 dark:text-green-400" : "text-gray-400 dark:text-gray-500")} />
                     {item.label}
                   </button>
                 ))}
@@ -74,30 +76,39 @@ export function Navbar({ activeTab, setActiveTab }: NavbarProps) {
                 className={cn(
                   "flex items-center px-4 py-2.5 rounded-xl text-[14px] lg:text-[15px] font-semibold transition-all duration-200",
                   isAdminPage
-                    ? "text-blue-700 bg-blue-50"
-                    : "text-gray-600 hover:text-blue-600 hover:bg-blue-50"
+                    ? "text-blue-700 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/30"
+                    : "text-gray-600 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/30"
                 )}
               >
-                <LayoutDashboard className={cn("h-4 w-4 mr-2", isAdminPage ? "text-blue-600" : "text-gray-400")} />
+                <LayoutDashboard className={cn("h-4 w-4 mr-2", isAdminPage ? "text-blue-600 dark:text-blue-400" : "text-gray-400 dark:text-gray-500")} />
                 Admin
               </Link>
             )}
 
-            <div className="h-8 w-[1px] bg-gray-100 mx-2" />
+            {/* Dark Mode Toggle */}
+            <button
+              onClick={toggleTheme}
+              className="p-2.5 rounded-xl text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 transition-all duration-200"
+              title={isDark ? 'Mode Terang' : 'Mode Gelap'}
+            >
+              {isDark ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
+            </button>
+
+            <div className="h-8 w-[1px] bg-gray-100 dark:bg-gray-700 mx-2" />
 
             {user ? (
               <div className="flex items-center gap-3 pl-2">
-                <div className="flex items-center gap-3 px-3 py-1.5 bg-gray-50 rounded-xl border border-gray-100">
+                <div className="flex items-center gap-3 px-3 py-1.5 bg-gray-50 dark:bg-gray-800 rounded-xl border border-gray-100 dark:border-gray-700">
                   <img 
                     src={user.photoURL || ''} 
                     alt={user.displayName || ''} 
-                    className="h-8 w-8 rounded-full border-2 border-white shadow-sm" 
+                    className="h-8 w-8 rounded-full border-2 border-white dark:border-gray-700 shadow-sm" 
                   />
-                  <span className="text-sm font-bold text-gray-700 max-w-[120px] truncate">{user.displayName}</span>
+                  <span className="text-sm font-bold text-gray-700 dark:text-gray-200 max-w-[120px] truncate">{user.displayName}</span>
                 </div>
                 <button
                   onClick={logout}
-                  className="p-2.5 text-gray-400 hover:text-red-600 rounded-xl hover:bg-red-50 transition-all duration-200"
+                  className="p-2.5 text-gray-400 dark:text-gray-500 hover:text-red-600 dark:hover:text-red-400 rounded-xl hover:bg-red-50 dark:hover:bg-red-900/30 transition-all duration-200"
                   title="Logout"
                 >
                   <LogOut className="h-5 w-5" />
@@ -106,7 +117,7 @@ export function Navbar({ activeTab, setActiveTab }: NavbarProps) {
             ) : (
               <button
                 onClick={loginWithGoogle}
-                className="flex items-center px-6 py-2.5 bg-green-600 text-white text-[14px] font-bold rounded-xl hover:bg-green-700 shadow-lg shadow-green-100 transition-all active:scale-95"
+                className="flex items-center px-6 py-2.5 bg-green-600 dark:bg-green-500 text-white text-[14px] font-bold rounded-xl hover:bg-green-700 dark:hover:bg-green-600 shadow-lg shadow-green-100 dark:shadow-green-900/30 transition-all active:scale-95"
               >
                 <LogIn className="h-4 w-4 mr-2" />
                 Login
@@ -115,10 +126,18 @@ export function Navbar({ activeTab, setActiveTab }: NavbarProps) {
           </div>
 
           {/* Mobile Menu Button */}
-          <div className="md:hidden flex items-center">
+          <div className="md:hidden flex items-center gap-2">
+            {/* Dark Mode Toggle Mobile */}
+            <button
+              onClick={toggleTheme}
+              className="p-2 rounded-xl text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
+              title={isDark ? 'Mode Terang' : 'Mode Gelap'}
+            >
+              {isDark ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
+            </button>
             <button
               onClick={() => setIsMenuOpen(!isMenuOpen)}
-              className="p-2 rounded-xl text-gray-600 hover:bg-gray-50 transition-colors"
+              className="p-2 rounded-xl text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
             >
               {isMenuOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
             </button>
@@ -128,7 +147,7 @@ export function Navbar({ activeTab, setActiveTab }: NavbarProps) {
 
       {/* Mobile Navigation Dropdown */}
       {isMenuOpen && (
-        <div className="md:hidden border-t border-gray-50 bg-white animate-in fade-in slide-in-from-top-2 duration-200">
+        <div className="md:hidden border-t border-gray-50 dark:border-gray-700 bg-white dark:bg-gray-900 animate-in fade-in slide-in-from-top-2 duration-200">
           <div className="px-4 pt-2 pb-6 space-y-2">
             {!isAdminPage && navItems.map((item) => (
               <button
@@ -137,11 +156,11 @@ export function Navbar({ activeTab, setActiveTab }: NavbarProps) {
                 className={cn(
                   "flex items-center w-full px-4 py-3.5 rounded-xl text-[15px] font-bold transition-all",
                   activeTab === item.id
-                    ? "text-green-700 bg-green-50"
-                    : "text-gray-600 hover:bg-gray-50"
+                    ? "text-green-700 dark:text-green-400 bg-green-50 dark:bg-green-900/30"
+                    : "text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800"
                 )}
               >
-                <item.icon className={cn("h-5 w-5 mr-3", activeTab === item.id ? "text-green-600" : "text-gray-400")} />
+                <item.icon className={cn("h-5 w-5 mr-3", activeTab === item.id ? "text-green-600 dark:text-green-400" : "text-gray-400 dark:text-gray-500")} />
                 {item.label}
               </button>
             ))}
@@ -153,32 +172,32 @@ export function Navbar({ activeTab, setActiveTab }: NavbarProps) {
                 className={cn(
                   "flex items-center w-full px-4 py-3.5 rounded-xl text-[15px] font-bold transition-all",
                   isAdminPage
-                    ? "text-blue-700 bg-blue-50"
-                    : "text-gray-600 hover:bg-blue-50"
+                    ? "text-blue-700 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/30"
+                    : "text-gray-600 dark:text-gray-300 hover:bg-blue-50 dark:hover:bg-blue-900/30"
                 )}
               >
-                <LayoutDashboard className={cn("h-5 w-5 mr-3", isAdminPage ? "text-blue-600" : "text-gray-400")} />
+                <LayoutDashboard className={cn("h-5 w-5 mr-3", isAdminPage ? "text-blue-600 dark:text-blue-400" : "text-gray-400 dark:text-gray-500")} />
                 Admin Dashboard
               </Link>
             )}
             
-            <div className="pt-4 mt-4 border-t border-gray-50">
+            <div className="pt-4 mt-4 border-t border-gray-50 dark:border-gray-700">
               {user ? (
                 <div className="space-y-3">
-                  <div className="flex items-center gap-3 px-4 py-3 bg-gray-50 rounded-xl">
+                  <div className="flex items-center gap-3 px-4 py-3 bg-gray-50 dark:bg-gray-800 rounded-xl">
                     <img 
                       src={user.photoURL || ''} 
                       alt={user.displayName || ''} 
-                      className="h-10 w-10 rounded-full border-2 border-white shadow-sm" 
+                      className="h-10 w-10 rounded-full border-2 border-white dark:border-gray-700 shadow-sm" 
                     />
                     <div className="flex flex-col min-w-0">
-                      <span className="text-[15px] font-bold text-gray-900 truncate">{user.displayName}</span>
-                      <span className="text-xs text-gray-500 truncate">{user.email}</span>
+                      <span className="text-[15px] font-bold text-gray-900 dark:text-white truncate">{user.displayName}</span>
+                      <span className="text-xs text-gray-500 dark:text-gray-400 truncate">{user.email}</span>
                     </div>
                   </div>
                   <button
                     onClick={logout}
-                    className="flex items-center w-full px-4 py-3.5 text-[15px] font-bold text-red-600 hover:bg-red-50 rounded-xl transition-all"
+                    className="flex items-center w-full px-4 py-3.5 text-[15px] font-bold text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/30 rounded-xl transition-all"
                   >
                     <LogOut className="h-5 w-5 mr-3" />
                     Keluar Akun
@@ -187,7 +206,7 @@ export function Navbar({ activeTab, setActiveTab }: NavbarProps) {
               ) : (
                 <button
                   onClick={loginWithGoogle}
-                  className="flex items-center justify-center w-full py-4 px-4 bg-green-600 text-white text-[15px] font-bold rounded-xl shadow-lg shadow-green-100 transition-all active:scale-95"
+                  className="flex items-center justify-center w-full py-4 px-4 bg-green-600 dark:bg-green-500 text-white text-[15px] font-bold rounded-xl shadow-lg shadow-green-100 dark:shadow-green-900/30 transition-all active:scale-95"
                 >
                   <LogIn className="h-5 w-5 mr-2" />
                   Masuk dengan Google
