@@ -31,7 +31,7 @@ export function SearchForm({ onSubmit, isLoading }: SearchFormProps) {
   const [budget, setBudget] = useState<number>(3000000);
   const [selectedNeeds, setSelectedNeeds] = useState<string[]>([]);
   const [detail, setDetail] = useState('');
-  const [isFilterOpen, setIsFilterOpen] = useState(false);
+  const [isFilterOpen, setIsFilterOpen] = useState(true);
 
   const activeCategory = CATEGORIES.find(c => c.id === category);
 
