@@ -253,12 +253,63 @@ Always respond ONLY in valid JSON, no markdown, no backticks. Respond in Bahasa 
                 </div>
               </div>
             ) : (
-              <div className="h-[50vh] flex flex-col items-center justify-center text-center p-12 bg-white dark:bg-gray-900 rounded-2xl border border-gray-100 dark:border-gray-700 border-dashed">
-                <div className="w-16 h-16 bg-green-50 dark:bg-green-900/30 rounded-full flex items-center justify-center mb-4">
-                  <Search className="w-8 h-8 text-green-600 dark:text-green-400" />
+              <div className="space-y-6">
+                {/* Hero Description Section */}
+                <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 p-8">
+                  <div className="flex flex-col md:flex-row items-start gap-6">
+                    <div className="flex-1">
+                      <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-3">
+                        Temukan Produk Terbaik untuk Kebutuhanmu
+                      </h2>
+                      <p className="text-gray-600 dark:text-gray-300 text-sm leading-relaxed mb-4">
+                        IndoRecs adalah platform rekomendasi produk berbasis AI yang dirancang khusus untuk konsumen Indonesia. 
+                        Kami membantu kamu menemukan produk terbaik — dari smartphone, laptop, skincare, hingga peralatan rumah tangga — 
+                        yang sesuai dengan budget dan kebutuhan spesifik kamu.
+                      </p>
+                      <p className="text-gray-600 dark:text-gray-300 text-sm leading-relaxed mb-4">
+                        Cukup pilih kategori produk di atas, tentukan budget maksimal, dan jelaskan kebutuhan kamu. 
+                        AI kami akan menganalisis pasar Indonesia dan memberikan <strong className="text-gray-900 dark:text-white">3 rekomendasi terbaik</strong> lengkap dengan 
+                        analisis kelebihan, kekurangan, spesifikasi, dan link langsung ke Tokopedia & Shopee.
+                      </p>
+                      <div className="flex flex-wrap gap-3 text-xs text-gray-500 dark:text-gray-400">
+                        <span className="flex items-center gap-1.5 px-3 py-1.5 bg-green-50 dark:bg-green-900/30 rounded-full">
+                          <Sparkles className="w-3.5 h-3.5 text-green-600 dark:text-green-400" />
+                          Didukung AI Google Gemini
+                        </span>
+                        <span className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-50 dark:bg-blue-900/30 rounded-full">
+                          🛒 Link Tokopedia & Shopee
+                        </span>
+                        <span className="flex items-center gap-1.5 px-3 py-1.5 bg-purple-50 dark:bg-purple-900/30 rounded-full">
+                          🇮🇩 Pasar Indonesia
+                        </span>
+                      </div>
+                    </div>
+                    <div className="hidden md:block flex-shrink-0">
+                      <div className="w-16 h-16 bg-green-50 dark:bg-green-900/30 rounded-full flex items-center justify-center">
+                        <Search className="w-8 h-8 text-green-600 dark:text-green-400" />
+                      </div>
+                    </div>
+                  </div>
                 </div>
-                <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-2">Mulai Pencarian</h3>
-                <p className="text-gray-500 dark:text-gray-400 max-w-md">Pilih kategori di atas dan atur filter untuk mendapatkan rekomendasi produk terbaik yang disesuaikan dengan kebutuhan dan budget Anda.</p>
+
+                {/* How It Works */}
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div className="bg-white dark:bg-gray-900 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 p-5 text-center">
+                    <div className="text-2xl mb-2">🎯</div>
+                    <h3 className="font-bold text-gray-900 dark:text-white text-sm mb-1">1. Pilih Kriteria</h3>
+                    <p className="text-xs text-gray-500 dark:text-gray-400">Tentukan kategori produk, budget, dan kebutuhan kamu</p>
+                  </div>
+                  <div className="bg-white dark:bg-gray-900 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 p-5 text-center">
+                    <div className="text-2xl mb-2">🤖</div>
+                    <h3 className="font-bold text-gray-900 dark:text-white text-sm mb-1">2. AI Menganalisis</h3>
+                    <p className="text-xs text-gray-500 dark:text-gray-400">Google Gemini mencocokkan produk terbaik untuk kamu</p>
+                  </div>
+                  <div className="bg-white dark:bg-gray-900 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 p-5 text-center">
+                    <div className="text-2xl mb-2">🛍️</div>
+                    <h3 className="font-bold text-gray-900 dark:text-white text-sm mb-1">3. Belanja Cerdas</h3>
+                    <p className="text-xs text-gray-500 dark:text-gray-400">Dapatkan rekomendasi & langsung beli di marketplace favorit</p>
+                  </div>
+                </div>
               </div>
             )}
           </div>

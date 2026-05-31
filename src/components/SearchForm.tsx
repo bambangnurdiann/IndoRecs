@@ -105,7 +105,7 @@ export function SearchForm({ onSubmit, isLoading }: SearchFormProps) {
                 </div>
                 <div className="space-y-3">
                   <label className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Detail Tambahan</label>
-                  <textarea value={detail} onChange={(e) => setDetail(e.target.value)} placeholder="Contoh: Harus warna hitam, baterai awet..." className="w-full p-3 border border-gray-200 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all resize-none h-[88px] text-sm bg-white dark:bg-gray-900 text-gray-900 dark:text-white placeholder:text-gray-400 dark:placeholder:text-gray-500" />
+                  <textarea value={detail} onChange={(e) => setDetail(e.target.value)} placeholder="Contoh: Butuh untuk kerja desain grafis, baterai tahan lama, layar minimal 15 inch..." className="w-full p-3 border border-gray-200 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all resize-none h-[88px] text-sm bg-white dark:bg-gray-900 text-gray-900 dark:text-white placeholder:text-gray-400 dark:placeholder:text-gray-500" />
                 </div>
               </div>
             </div>
