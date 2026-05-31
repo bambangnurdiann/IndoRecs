@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Product } from '../types';
-import { CheckCircle2, XCircle, ShoppingBag, Share2, Heart, ThumbsUp, ThumbsDown, ChevronDown, ChevronUp, Loader2 } from 'lucide-react';
+import { CheckCircle2, XCircle, ShoppingBag, Share2, Heart, ThumbsUp, ThumbsDown, ChevronDown, ChevronUp } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { useAuth } from '../contexts/AuthContext';
 
@@ -11,7 +11,6 @@ interface ProductCardProps {
   onWishlistToggle: (product: Product) => void | Promise<void>;
   isWishlisted: boolean;
   onFeedback: (productName: string, helpful: boolean) => void | Promise<void>;
-  isConvertingAffiliate?: boolean;
 }
 
 export const ProductCard: React.FC<ProductCardProps> = ({
@@ -21,7 +20,6 @@ export const ProductCard: React.FC<ProductCardProps> = ({
   onWishlistToggle,
   isWishlisted,
   onFeedback,
-  isConvertingAffiliate = false,
 }) => {
   const { user } = useAuth();
   const [showSpecs, setShowSpecs] = useState(false);
@@ -146,22 +144,15 @@ export const ProductCard: React.FC<ProductCardProps> = ({
             <ShoppingBag className="w-3.5 h-3.5 mr-1.5" />
             Tokopedia
           </a>
-          {isConvertingAffiliate ? (
-            <div className="flex-1 flex items-center justify-center px-3 py-2.5 bg-orange-50 text-[#EE4D2D] text-xs font-bold rounded-xl border-2 border-[#EE4D2D]">
-              <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" />
-              Loading...
-            </div>
-          ) : (
-            <a
-              href={product.affiliate_url || product.shopee_url}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex-1 flex items-center justify-center px-3 py-2.5 bg-white text-[#EE4D2D] text-xs font-bold rounded-xl border-2 border-[#EE4D2D] hover:bg-[#EE4D2D] hover:text-white transition-all duration-200"
-            >
-              <ShoppingBag className="w-3.5 h-3.5 mr-1.5" />
-              Shopee
-            </a>
-          )}
+          <a
+            href={product.affiliate_url || product.shopee_url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex-1 flex items-center justify-center px-3 py-2.5 bg-white text-[#EE4D2D] text-xs font-bold rounded-xl border-2 border-[#EE4D2D] hover:bg-[#EE4D2D] hover:text-white transition-all duration-200"
+          >
+            <ShoppingBag className="w-3.5 h-3.5 mr-1.5" />
+            Shopee
+          </a>
         </div>
 
         {/* Bottom Actions */}
