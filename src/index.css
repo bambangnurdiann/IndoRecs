@@ -21,6 +21,10 @@
     @apply w-5 h-5 rounded-full bg-green-600 cursor-pointer shadow-md border-2 border-white;
   }
 
+  .dark body {
+  background-color: #030712;
+  }
+
   /* Hide scrollbar utility */
   .no-scrollbar::-webkit-scrollbar {
     display: none;
