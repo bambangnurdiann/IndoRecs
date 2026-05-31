@@ -15,7 +15,7 @@ try { if (process.env.GEMINI_API_KEY) { ai = new GoogleGenAI({ apiKey: process.e
 catch (e) { console.error("Failed to initialize Gemini API", e); }
 
 export default function Home({ activeTab, setActiveTab }: { activeTab: string, setActiveTab: (tab: any) => void }) {
-  const { user } = useAuth();
+  const { user, loginWithGoogle } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
   const [loadingText, setLoadingText] = useState("Mencari produk terbaik...");
   const [result, setResult] = useState<SearchResult | null>(null);
@@ -77,11 +77,6 @@ Respond in Bahasa Indonesia.`; const resp = await ai.models.generateContent({ mo
     {activeTab === 'search' && <SearchForm onSubmit={handleSearch} isLoading={isLoading} />}
     <main className="max-w-[1440px] mx-auto px-4 sm:px-6 lg:px-8 py-8">
       <AdPlacement placement="top_banner" className="mb-8 h-24 md:h-32" />
-      {!user && activeTab !== 'search' && (
-        <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 p-4 rounded-xl mb-8">
-          <div className="flex items-start gap-3"><AlertTriangle className="h-5 w-5 text-yellow-600 dark:text-yellow-400 flex-shrink-0 mt-0.5" /><p className="text-sm text-yellow-700 dark:text-yellow-300">Anda belum login. Login untuk menyimpan riwayat dan wishlist.</p></div>
-        </div>
-      )}
       {activeTab === 'search' && (<div className="space-y-8">
         {isLoading ? renderSkeleton() : result ? (<div className="space-y-8">
           {result.budget_warning && (
@@ -123,7 +118,7 @@ Respond in Bahasa Indonesia.`; const resp = await ai.models.generateContent({ mo
         </div>)}
       </div>)}
 
-      {activeTab === 'history' && user && (<div className="space-y-6">
+      {activeTab === 'history' && (user ? (<div className="space-y-6">
         <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Riwayat Pencarian</h2>
         {history.length === 0 ? <p className="text-sm text-gray-500 dark:text-gray-400">Belum ada riwayat pencarian.</p> : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -140,15 +135,27 @@ Respond in Bahasa Indonesia.`; const resp = await ai.models.generateContent({ mo
             ))}
           </div>
         )}
-      </div>)}
-      {activeTab === 'wishlist' && user && (<div className="space-y-6">
+      </div>) : (
+        <div className="max-w-md mx-auto text-center py-16">
+          <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">Login untuk melihat Riwayat</h2>
+          <p className="text-sm text-gray-500 dark:text-gray-400 mb-6">Masuk dengan akun Google untuk menyimpan dan melihat riwayat pencarian kamu.</p>
+          <button onClick={loginWithGoogle} className="px-6 py-2.5 bg-green-600 text-white text-sm font-semibold rounded-lg hover:bg-green-700 transition-colors">Login dengan Google</button>
+        </div>
+      ))}
+      {activeTab === 'wishlist' && (user ? (<div className="space-y-6">
         <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Wishlist Saya</h2>
         {wishlist.length === 0 ? <p className="text-sm text-gray-500 dark:text-gray-400">Belum ada produk di wishlist.</p> : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {wishlist.map(item => (<ProductCard key={item.id} product={item.product} onCompareToggle={handleCompareToggle} isCompared={compareList.some(p => p.name === item.product.name)} onWishlistToggle={handleWishlistToggle} isWishlisted={true} onFeedback={handleFeedback} />))}
           </div>
         )}
-      </div>)}
+      </div>) : (
+        <div className="max-w-md mx-auto text-center py-16">
+          <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">Login untuk melihat Wishlist</h2>
+          <p className="text-sm text-gray-500 dark:text-gray-400 mb-6">Masuk dengan akun Google untuk menyimpan produk favorit kamu di wishlist.</p>
+          <button onClick={loginWithGoogle} className="px-6 py-2.5 bg-green-600 text-white text-sm font-semibold rounded-lg hover:bg-green-700 transition-colors">Login dengan Google</button>
+        </div>
+      ))}
     </main>
     {compareList.length > 0 && (
       <div className="fixed bottom-0 left-0 right-0 bg-white dark:bg-gray-900 border-t border-gray-200 dark:border-gray-700 p-4 z-40">
