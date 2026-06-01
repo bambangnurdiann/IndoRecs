@@ -1,10 +1,5 @@
 // api/compare.ts
-// Server-side product comparison. Keeps GEMINI_API_KEY off the client.
-type ApiRequest = {
-  method?: string;
-  body?: unknown;
-};
-
+type ApiRequest = { method?: string; body?: unknown };
 type ApiResponse = {
   setHeader: (name: string, value: string) => void;
   status: (code: number) => ApiResponse;
@@ -13,9 +8,7 @@ type ApiResponse = {
 };
 import { generateJson } from './_lib/gemini';
 
-interface CompareBody {
-  productNames?: string[];
-}
+interface CompareBody { productNames?: string[] }
 
 const MAX_NAME_LEN = 200;
 const MIN_PRODUCTS = 2;
@@ -30,13 +23,11 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
-
   if (req.method === 'OPTIONS') return res.status(200).end();
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
   try {
     const body = (req.body ?? {}) as CompareBody;
-
     const names = Array.isArray(body.productNames)
       ? body.productNames.map((n) => clean(n, MAX_NAME_LEN)).filter(Boolean)
       : [];
@@ -47,23 +38,27 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
       });
     }
 
-    // Build score templates for each product so Gemini knows the exact keys to use.
-    const scoreTemplate = names.reduce<Record<string, unknown>>((acc, name) => {
-      acc[name] = { score: 0, note: 'penjelasan' };
+    // Gunakan key index pendek agar Gemini tidak ubah nama
+    const scoreTemplate = names.reduce<Record<string, unknown>>((acc, _, i) => {
+      acc[`p${i}`] = { score: 0, note: 'penjelasan singkat' };
       return acc;
     }, {});
-    const verdictTemplate = names.reduce<Record<string, string>>((acc, name) => {
-      acc[name] = 'cocok untuk siapa';
+    const verdictTemplate = names.reduce<Record<string, string>>((acc, _, i) => {
+      acc[`p${i}`] = 'cocok untuk siapa';
       return acc;
     }, {});
+
+    const productMapping = names.map((name, i) => `p${i} = "${name}"`).join(', ');
 
     const prompt = `Bandingkan produk berikut:
-Produk: ${names.join(', ')}
+${names.map((name, i) => `p${i}: ${name}`).join('\n')}
 
-Balas HANYA JSON:
+Mapping: ${productMapping}
+
+Balas HANYA JSON (tanpa markdown, tanpa backtick):
 {
-  "winner": "nama produk pemenang",
-  "winner_reason": "alasan singkat",
+  "winner": "nama produk pemenang (nama lengkap asli, bukan key)",
+  "winner_reason": "alasan singkat kenapa menang",
   "comparison": [
     { "aspect": "Performa", "scores": ${JSON.stringify(scoreTemplate)} },
     { "aspect": "Nilai Harga", "scores": ${JSON.stringify(scoreTemplate)} },
@@ -73,10 +68,29 @@ Balas HANYA JSON:
   ],
   "verdict": ${JSON.stringify(verdictTemplate)}
 }
-Always respond ONLY in valid JSON, no markdown, no backticks. Respond in Bahasa Indonesia.`;
+Isi score dengan angka 1-10. Respond in Bahasa Indonesia.`;
 
-    const result = await generateJson(prompt);
-    return res.status(200).json(result);
+    const raw = await generateJson<any>(prompt);
+
+    // Remap key p0/p1/p2 kembali ke nama produk asli
+    const remapped = {
+      ...raw,
+      comparison: Array.isArray(raw.comparison)
+        ? raw.comparison.map((comp: any) => ({
+            ...comp,
+            scores: names.reduce<Record<string, unknown>>((acc, name, i) => {
+              acc[name] = comp.scores?.[`p${i}`] ?? { score: '-', note: '-' };
+              return acc;
+            }, {}),
+          }))
+        : [],
+      verdict: names.reduce<Record<string, string>>((acc, name, i) => {
+        acc[name] = raw.verdict?.[`p${i}`] ?? '-';
+        return acc;
+      }, {}),
+    };
+
+    return res.status(200).json(remapped);
   } catch (error) {
     console.error('Compare error:', error);
     const message = error instanceof Error ? error.message : 'Internal server error';

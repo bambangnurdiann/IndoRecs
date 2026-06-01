@@ -1,6 +1,7 @@
 import React from 'react';
 import { ProductCard } from './ProductCard';
 import { Product, WishlistItem } from '../types';
+import { generateShopeeAffiliateLink } from '../lib/affiliate';
 
 interface WishlistTabProps {
   wishlist: WishlistItem[];
@@ -18,9 +19,24 @@ export function WishlistTab({ wishlist, compareList, onCompareToggle, onWishlist
         <p className="text-sm text-gray-500 dark:text-gray-400">Belum ada produk di wishlist.</p>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {wishlist.map(item => (
-            <ProductCard key={item.id} product={item.product} onCompareToggle={onCompareToggle} isCompared={compareList.some(p => p.name === item.product.name)} onWishlistToggle={onWishlistToggle} isWishlisted={true} onFeedback={onFeedback} />
-          ))}
+          {wishlist.map(item => {
+            // Inject affiliate_url karena tidak disimpan di Firestore
+            const productWithAffiliate: Product = {
+              ...item.product,
+              affiliate_url: generateShopeeAffiliateLink(item.product.name),
+            };
+            return (
+              <ProductCard
+                key={item.id}
+                product={productWithAffiliate}
+                onCompareToggle={onCompareToggle}
+                isCompared={compareList.some(p => p.name === item.product.name)}
+                onWishlistToggle={onWishlistToggle}
+                isWishlisted={true}
+                onFeedback={onFeedback}
+              />
+            );
+          })}
         </div>
       )}
     </div>
