@@ -1,4 +1,5 @@
 // api/compare.ts
+// Server-side product comparison. Keeps GEMINI_API_KEY off the client.
 type ApiRequest = { method?: string; body?: unknown };
 type ApiResponse = {
   setHeader: (name: string, value: string) => void;
@@ -38,7 +39,7 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
       });
     }
 
-    // Gunakan key index pendek agar Gemini tidak ubah nama
+    // Gunakan key index pendek agar Gemini tidak mengubah nama produk
     const scoreTemplate = names.reduce<Record<string, unknown>>((acc, _, i) => {
       acc[`p${i}`] = { score: 0, note: 'penjelasan singkat' };
       return acc;
@@ -53,11 +54,11 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
     const prompt = `Bandingkan produk berikut:
 ${names.map((name, i) => `p${i}: ${name}`).join('\n')}
 
-Mapping: ${productMapping}
+Mapping key: ${productMapping}
 
-Balas HANYA JSON (tanpa markdown, tanpa backtick):
+Balas HANYA dengan JSON valid (tanpa markdown, tanpa backtick, tanpa komentar):
 {
-  "winner": "nama produk pemenang (nama lengkap asli, bukan key)",
+  "winner": "nama produk pemenang (nama lengkap asli, bukan key p0/p1/p2)",
   "winner_reason": "alasan singkat kenapa menang",
   "comparison": [
     { "aspect": "Performa", "scores": ${JSON.stringify(scoreTemplate)} },
@@ -68,11 +69,15 @@ Balas HANYA JSON (tanpa markdown, tanpa backtick):
   ],
   "verdict": ${JSON.stringify(verdictTemplate)}
 }
-Isi score dengan angka 1-10. Respond in Bahasa Indonesia.`;
+Isi score dengan angka integer 1-10. Semua teks dalam Bahasa Indonesia.`;
+
+    console.log('[compare] Sending request to Gemini for products:', names);
 
     const raw = await generateJson<any>(prompt);
 
-    // Remap key p0/p1/p2 kembali ke nama produk asli
+    console.log('[compare] Gemini raw response keys:', Object.keys(raw ?? {}));
+
+    // Remap key p0/p1/p2 kembali ke nama produk asli untuk frontend
     const remapped = {
       ...raw,
       comparison: Array.isArray(raw.comparison)
@@ -90,11 +95,28 @@ Isi score dengan angka 1-10. Respond in Bahasa Indonesia.`;
       }, {}),
     };
 
+    console.log('[compare] Remapped successfully, returning response');
     return res.status(200).json(remapped);
-  } catch (error) {
-    console.error('Compare error:', error);
-    const message = error instanceof Error ? error.message : 'Internal server error';
-    const safe = message.startsWith('GEMINI_API_KEY') ? 'Server configuration error' : 'Failed to compare products';
-    return res.status(502).json({ error: safe });
+
+  } catch (error: any) {
+    console.error('[compare] Error detail:', {
+      message: error?.message,
+      stack: error?.stack?.slice(0, 500),
+    });
+
+    const message: string = error?.message ?? 'Internal server error';
+
+    let userMessage = 'Gagal membandingkan produk, coba lagi.';
+    if (message.startsWith('GEMINI_API_KEY')) {
+      userMessage = 'Server configuration error';
+    } else if (message.includes('Empty response')) {
+      userMessage = 'AI tidak dapat memproses permintaan ini. Coba dengan nama produk yang berbeda.';
+    } else if (message.includes('non-JSON')) {
+      userMessage = 'AI mengembalikan format yang tidak valid. Silakan coba lagi.';
+    } else if (message.includes('API call failed')) {
+      userMessage = 'Koneksi ke AI gagal. Periksa koneksi internet dan coba lagi.';
+    }
+
+    return res.status(502).json({ error: userMessage });
   }
 }

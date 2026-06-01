@@ -1,0 +1,13 @@
+{
+  "functions": {
+    "api/compare.ts": {
+      "maxDuration": 30
+    },
+    "api/recommend.ts": {
+      "maxDuration": 30
+    },
+    "api/visual-search.ts": {
+      "maxDuration": 30
+    }
+  }
+}
