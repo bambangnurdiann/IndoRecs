@@ -15,20 +15,17 @@ export function generateShopeeAffiliateLink(productName: string): string {
  * Template URL: product search di blibli.com dengan keyword nama produk.
  */
 export function generateBlibliAffiliateLink(productName: string): string {
-  // Buat slug dari nama produk
-  const slug = encodeURIComponent(productName).replace(/%20/g, '-').toLowerCase();
+  const keyword = encodeURIComponent(productName);
 
-  // URL tujuan versi web dan versi aplikasi (deep link)
-  const blibliSearchUrl = `https://www.blibli.com/jual/${slug}`;
-  const blibliAppPath = `blibli://jual/${slug}`;
+  // URL search Blibli yang valid
+  const blibliSearchUrl = `https://www.blibli.com/search?keyword=${keyword}`;
 
-  // Susun deep link onelink TANPA encodeURIComponent di dalamnya
-  // Biarkan parameter ditulis mentah agar tidak terjadi double-encoding
+  // Deep link menggunakan format yang sudah kamu test (dari contoh iPhone 16 & Infinix)
   const deepLinkUrl =
     `https://blibliaffiliate.onelink.me/JLcX` +
     `?af_force_deeplink=true` +
     `&af_param_forwarding=true` +
-    `&af_dp=${blibliAppPath}` +
+    `&af_dp=blibli%3A%2F%2F%7Blanding_page_url_without_domain%7D` +
     `&at_fnlp_parameter_name=af_r` +
     `&af_r=${blibliSearchUrl}` +
     `&utm_source=affiliates` +
@@ -36,7 +33,7 @@ export function generateBlibliAffiliateLink(productName: string): string {
     `&utm_campaign=business_share` +
     `&utm_content={psn}-{clickid}`;
 
-  // Lakukan encodeURIComponent HANYA SATU KALI saat membungkusnya ke link Accesstrade
+  // Bungkus dengan shortener Accesstrade kamu
   return `https://atid.me/00dh9j002poy?url=${encodeURIComponent(deepLinkUrl)}`;
 }
 
