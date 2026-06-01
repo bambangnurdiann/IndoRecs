@@ -24,7 +24,7 @@ export function WishlistTab({ wishlist, compareList, onCompareToggle, onWishlist
             const productWithAffiliate: Product = {
               ...item.product,
               affiliate_url: generateShopeeAffiliateLink(item.product.name),
-              blibli_affiliate_url: generateBlibliAffiliateLink(item.product.name),
+              blibli_affiliate_url: generateBlibliAffiliateLink(item.product.blibli_url || item.product.name),
             };
             return (
               <ProductCard
