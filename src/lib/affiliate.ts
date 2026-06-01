@@ -14,29 +14,18 @@ export function generateShopeeAffiliateLink(productName: string): string {
  * Generate Blibli affiliate deep link via Accesstrade.
  * Template URL: product search di blibli.com dengan keyword nama produk.
  */
-export function generateBlibliAffiliateLink(productNameOrUrl: string): string {
-  // Deteksi apakah input adalah URL Blibli lengkap atau nama produk
-  let fullUrl: string;
-  let landingPath: string;
-
-  if (productNameOrUrl.startsWith('https://www.blibli.com/')) {
-    // Sudah URL lengkap → ambil path apa adanya
-    fullUrl = productNameOrUrl;
-    landingPath = fullUrl.replace('https://www.blibli.com/', '');
-  } else {
-    // Nama produk → fallback ke URL pencarian /jual/
-    const slug = encodeURIComponent(productNameOrUrl).replace(/%20/g, '-').toLowerCase();
-    fullUrl = `https://www.blibli.com/jual/${slug}`;
-    landingPath = `jual/${slug}`;
-  }
+export function generateBlibliAffiliateLink(productName: string): string {
+  // Selalu gunakan URL pencarian /jual/{keyword} — mirip pendekatan Shopee
+  const slug = encodeURIComponent(productName).replace(/%20/g, '-').toLowerCase();
+  const blibliSearchUrl = `https://www.blibli.com/jual/${slug}`;
 
   const deepLinkUrl =
     `https://blibliaffiliate.onelink.me/JLcX` +
     `?af_force_deeplink=true` +
     `&af_param_forwarding=true` +
-    `&af_dp=blibli%3A%2F%2F${encodeURIComponent(landingPath)}` +
+    `&af_dp=blibli%3A%2F%2F{landing_page_url_without_domain}` +
     `&at_fnlp_parameter_name=af_r` +
-    `&af_r=${encodeURIComponent(fullUrl)}` +
+    `&af_r=${encodeURIComponent(blibliSearchUrl)}` +
     `&utm_source=affiliates` +
     `&utm_medium=affb_6841170ad1b1481a31281e8b` +
     `&utm_campaign=business_share` +

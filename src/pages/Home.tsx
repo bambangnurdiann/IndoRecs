@@ -18,7 +18,7 @@ function injectAffiliateUrls(data) {
   return {
     ...data,
     products: data.products.map(function(p) {
-      return { ...p, affiliate_url: generateShopeeAffiliateLink(p.name), blibli_affiliate_url: generateBlibliAffiliateLink(p.blibli_url || p.name) };
+      return { ...p, affiliate_url: generateShopeeAffiliateLink(p.name), blibli_affiliate_url: generateBlibliAffiliateLink(p.name) };
     }),
   };
 }
