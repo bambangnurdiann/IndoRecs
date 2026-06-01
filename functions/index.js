@@ -23,8 +23,8 @@ exports.priceTrackerCron = functions.pubsub
         const data = doc.data();
         const product = data.product;
 
-        // TODO: Scrape / API-call untuk cek harga terkini dari Tokopedia/Shopee
-        // const currentPrice = await fetchCurrentPrice(product.name, product.tokopedia_url);
+        // TODO: Scrape / API-call untuk cek harga terkini dari Blibli/Shopee
+        // const currentPrice = await fetchCurrentPrice(product.name, product.blibli_url);
 
         // TODO: Bandingkan dengan product.price_min (harga rekomendasi)
         // const savedMinPrice = parseInt(product.price_min.replace(/[^0-9]/g, ""));

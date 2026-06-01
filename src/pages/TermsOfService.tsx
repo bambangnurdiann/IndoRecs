@@ -36,7 +36,7 @@ export default function TermsOfService() {
             <p>IndoRecs menyediakan layanan rekomendasi "sebagaimana adanya" (as-is) tanpa jaminan apapun. Kami tidak bertanggung jawab atas:</p>
             <ul className="list-disc pl-5 space-y-1 mt-2">
               <li>Keakuratan harga, ketersediaan stok, atau deskripsi produk yang ditampilkan.</li>
-              <li>Transaksi yang dilakukan di platform marketplace eksternal (Tokopedia, Shopee, dll).</li>
+              <li>Transaksi yang dilakukan di platform marketplace eksternal (Blibli, Shopee, dll).</li>
               <li>Kerugian atau kerusakan yang timbul dari penggunaan informasi rekomendasi kami.</li>
               <li>Gangguan layanan akibat pemeliharaan server atau force majeure.</li>
             </ul>
@@ -49,7 +49,7 @@ export default function TermsOfService() {
 
           <section>
             <h2 className="text-lg font-bold text-gray-900 dark:text-white mb-2">6. Tautan Afiliasi</h2>
-            <p>IndoRecs menggunakan tautan afiliasi pada link produk Shopee. Ini berarti kami dapat menerima komisi kecil jika Anda membeli produk melalui tautan tersebut, tanpa biaya tambahan untuk Anda. Komisi ini membantu mendukung operasional platform.</p>
+            <p>IndoRecs menggunakan tautan afiliasi pada link produk Shopee dan Blibli. Ini berarti kami dapat menerima komisi kecil jika Anda membeli produk melalui tautan tersebut, tanpa biaya tambahan untuk Anda. Komisi ini membantu mendukung operasional platform.</p>
           </section>
 
           <section>

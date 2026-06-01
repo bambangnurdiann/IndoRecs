@@ -74,7 +74,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({
         </div>
 
         <div className="flex gap-2 pt-1">
-          <a href={product.tokopedia_url} target="_blank" rel="noopener noreferrer" className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 bg-white dark:bg-gray-900 text-[#00AA5B] text-sm font-medium rounded-lg border border-[#00AA5B]/30 hover:bg-[#00AA5B] hover:text-white transition-colors"><ShoppingBag className="w-3.5 h-3.5" />Tokopedia</a>
+          <a href={product.blibli_affiliate_url || product.blibli_url} target="_blank" rel="noopener noreferrer" className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 bg-white dark:bg-gray-900 text-[#0066CC] text-sm font-medium rounded-lg border border-[#0066CC]/30 hover:bg-[#0066CC] hover:text-white transition-colors"><ShoppingBag className="w-3.5 h-3.5" />Blibli</a>
           <a href={product.affiliate_url || product.shopee_url} target="_blank" rel="noopener noreferrer" className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 bg-white dark:bg-gray-900 text-[#EE4D2D] text-sm font-medium rounded-lg border border-[#EE4D2D]/30 hover:bg-[#EE4D2D] hover:text-white transition-colors"><ShoppingBag className="w-3.5 h-3.5" />Shopee</a>
         </div>
 

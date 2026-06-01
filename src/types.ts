@@ -13,10 +13,11 @@ export interface Product {
   cons: string[];
   best_for: string;
   not_for: string;
-  tokopedia_url: string;
+  blibli_url: string;
   shopee_url: string;
   whatsapp_text: string;
   affiliate_url?: string;
+  blibli_affiliate_url?: string;
   community_verified?: boolean;
 }
 

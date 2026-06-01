@@ -53,7 +53,7 @@ export default function About() {
               <li><strong>Google Gemini AI:</strong> Model AI canggih yang menghasilkan rekomendasi produk dalam Bahasa Indonesia dengan pemahaman konteks lokal.</li>
               <li><strong>Firebase:</strong> Infrastruktur Google Cloud untuk autentikasi pengguna, penyimpanan data riwayat dan wishlist.</li>
               <li><strong>React + Tailwind CSS:</strong> Antarmuka modern yang cepat, responsif, dan mendukung mode gelap/terang.</li>
-              <li><strong>Accesstrade:</strong> Sistem tautan afiliasi untuk produk Shopee yang memungkinkan kami menghasilkan pendapatan untuk mendukung operasional.</li>
+              <li><strong>Accesstrade:</strong> Sistem tautan afiliasi untuk produk Shopee dan Blibli yang memungkinkan kami menghasilkan pendapatan untuk mendukung operasional.</li>
             </ul>
           </section>
 

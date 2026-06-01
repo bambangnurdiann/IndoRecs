@@ -1,7 +1,7 @@
 import React from 'react';
 import { ProductCard } from './ProductCard';
 import { Product, WishlistItem } from '../types';
-import { generateShopeeAffiliateLink } from '../lib/affiliate';
+import { generateShopeeAffiliateLink, generateBlibliAffiliateLink } from '../lib/affiliate';
 
 interface WishlistTabProps {
   wishlist: WishlistItem[];
@@ -24,6 +24,7 @@ export function WishlistTab({ wishlist, compareList, onCompareToggle, onWishlist
             const productWithAffiliate: Product = {
               ...item.product,
               affiliate_url: generateShopeeAffiliateLink(item.product.name),
+              blibli_affiliate_url: generateBlibliAffiliateLink(item.product.name),
             };
             return (
               <ProductCard
