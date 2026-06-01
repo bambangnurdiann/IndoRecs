@@ -18,11 +18,9 @@ export function getGeminiClient(): GoogleGenAI {
 
 /**
  * Strip markdown code fences jika Gemini membungkus JSON dengan ```json ... ```
- * meski sudah diminta responseMimeType: application/json.
  */
-function extractJson(raw: string): string {
+export function extractJson(raw: string): string {
   const trimmed = raw.trim();
-  // Hapus ```json ... ``` atau ``` ... ```
   const fenced = trimmed.match(/^```(?:json)?\s*([\s\S]*?)\s*```$/);
   if (fenced) return fenced[1].trim();
   return trimmed;
@@ -30,7 +28,6 @@ function extractJson(raw: string): string {
 
 /**
  * Call Gemini dengan JSON-only response dan parse hasilnya.
- * Throw on empty / unparseable output agar caller bisa return 502.
  */
 export async function generateJson<T = unknown>(prompt: string): Promise<T> {
   const ai = getGeminiClient();
@@ -46,9 +43,7 @@ export async function generateJson<T = unknown>(prompt: string): Promise<T> {
     throw new Error(`Gemini API call failed: ${err?.message ?? String(err)}`);
   }
 
-  // response.text bisa undefined jika model return kosong atau blocked
   const rawText: string | undefined = response.text;
-
   if (!rawText || rawText.trim() === '') {
     throw new Error('Empty response from Gemini — model may have blocked the request.');
   }
@@ -57,9 +52,7 @@ export async function generateJson<T = unknown>(prompt: string): Promise<T> {
 
   try {
     return JSON.parse(cleaned) as T;
-  } catch (err) {
-    throw new Error(
-      `Gemini returned non-JSON output: ${cleaned.slice(0, 300)}`
-    );
+  } catch {
+    throw new Error(`Gemini returned non-JSON output: ${cleaned.slice(0, 300)}`);
   }
 }

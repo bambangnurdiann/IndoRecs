@@ -1,14 +1,19 @@
 // api/visual-search.ts
-// Visual product search - accepts image (Base64) and returns product recommendations.
-
 type ApiRequest = { method?: string; body?: unknown };
 type ApiResponse = { setHeader: (n:string,v:string)=>void; status: (c:number)=>ApiResponse; json: (b:unknown)=>unknown; end: ()=>unknown; };
 
 import { GoogleGenAI } from '@google/genai';
 
 interface VisualSearchBody {
-  image?: string; // Base64
+  image?: string;
   mimeType?: string;
+}
+
+function extractJson(raw: string): string {
+  const trimmed = raw.trim();
+  const fenced = trimmed.match(/^```(?:json)?\s*([\s\S]*?)\s*```$/);
+  if (fenced) return fenced[1].trim();
+  return trimmed;
 }
 
 const GEMINI_MODEL = 'gemini-2.5-flash';
@@ -34,7 +39,7 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
     if (!body.image) return res.status(400).json({ error: 'Image (Base64) is required.' });
 
     const ai = getClient();
-    const prompt = `Lihat gambar produk ini. Berikan rekomendasi 3 produk serupa yang tersedia di Indonesia.\n\nBalas HANYA JSON:{\"budget_warning\":false,\"budget_warning_message\":\"\",\"summary\":\"deskripsi singkat\",\"products\":[{\"rank\":1,\"name\":\"Nama Produk\",\"brand\":\"Brand\",\"price_min\":\"Rp X\",\"price_max\":\"Rp Y\",\"is_bekas\":false,\"badge\":\"Best Match\",\"match_score\":85,\"match_reason\":\"alasan\",\"key_specs\":[\"spek\"],\"pros\":[\"pro\"],\"cons\":[\"con\"],\"best_for\":\"cocok\",\"not_for\":\"tidak cocok\",\"tokopedia_url\":\"https://...\",\"shopee_url\":\"https://...\",\"whatsapp_text\":\"teks\"}],\"tips\":\"tips\",\"alternative_suggestion\":\"saran\"}\nRespond ONLY JSON, no markdown. Bahasa Indonesia.`;
+    const prompt = `Lihat gambar produk ini. Berikan rekomendasi 3 produk serupa yang tersedia di Indonesia.\n\nBalas HANYA JSON (tanpa markdown, tanpa backtick):{"budget_warning":false,"budget_warning_message":"","summary":"deskripsi singkat","products":[{"rank":1,"name":"Nama Produk","brand":"Brand","price_min":"Rp X","price_max":"Rp Y","is_bekas":false,"badge":"Best Match","match_score":85,"match_reason":"alasan","key_specs":["spek"],"pros":["pro"],"cons":["con"],"best_for":"cocok","not_for":"tidak cocok","tokopedia_url":"https://...","shopee_url":"https://...","whatsapp_text":"teks"}],"tips":"tips","alternative_suggestion":"saran"}\nBahasa Indonesia.`;
 
     const response = await ai.models.generateContent({
       model: GEMINI_MODEL,
@@ -42,14 +47,19 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
         { text: prompt },
         { inlineData: { mimeType: body.mimeType || 'image/jpeg', data: body.image } }
       ],
-      config: { responseMimeType: 'application/json' }
+      config: { responseMimeType: 'application/json' },
     });
 
-    const text = response.text;
-    if (!text) throw new Error('Empty response');
-    return res.status(200).json(JSON.parse(text));
-  } catch (error) {
-    console.error('Visual search error:', error);
+    const rawText: string | undefined = response.text;
+    if (!rawText || rawText.trim() === '') {
+      throw new Error('Empty response from Gemini');
+    }
+
+    const cleaned = extractJson(rawText);
+    return res.status(200).json(JSON.parse(cleaned));
+
+  } catch (error: any) {
+    console.error('[visual-search] Error:', error?.message, error?.stack?.slice(0, 300));
     return res.status(502).json({ error: 'Failed to process image' });
   }
 }

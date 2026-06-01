@@ -1,5 +1,4 @@
 // api/compare.ts
-// Server-side product comparison. Keeps GEMINI_API_KEY off the client.
 type ApiRequest = { method?: string; body?: unknown };
 type ApiResponse = {
   setHeader: (name: string, value: string) => void;
@@ -7,7 +6,7 @@ type ApiResponse = {
   json: (body: unknown) => unknown;
   end: () => unknown;
 };
-import { generateJson } from './_lib/gemini';
+import { generateJson } from './_lib/gemini.js';
 
 interface CompareBody { productNames?: string[] }
 
@@ -39,7 +38,6 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
       });
     }
 
-    // Gunakan key index pendek agar Gemini tidak mengubah nama produk
     const scoreTemplate = names.reduce<Record<string, unknown>>((acc, _, i) => {
       acc[`p${i}`] = { score: 0, note: 'penjelasan singkat' };
       return acc;
@@ -71,13 +69,8 @@ Balas HANYA dengan JSON valid (tanpa markdown, tanpa backtick, tanpa komentar):
 }
 Isi score dengan angka integer 1-10. Semua teks dalam Bahasa Indonesia.`;
 
-    console.log('[compare] Sending request to Gemini for products:', names);
-
     const raw = await generateJson<any>(prompt);
 
-    console.log('[compare] Gemini raw response keys:', Object.keys(raw ?? {}));
-
-    // Remap key p0/p1/p2 kembali ke nama produk asli untuk frontend
     const remapped = {
       ...raw,
       comparison: Array.isArray(raw.comparison)
@@ -95,28 +88,16 @@ Isi score dengan angka integer 1-10. Semua teks dalam Bahasa Indonesia.`;
       }, {}),
     };
 
-    console.log('[compare] Remapped successfully, returning response');
     return res.status(200).json(remapped);
 
   } catch (error: any) {
-    console.error('[compare] Error detail:', {
-      message: error?.message,
-      stack: error?.stack?.slice(0, 500),
-    });
-
-    const message: string = error?.message ?? 'Internal server error';
-
+    console.error('[compare] Error:', error?.message, error?.stack?.slice(0, 300));
+    const message: string = error?.message ?? '';
     let userMessage = 'Gagal membandingkan produk, coba lagi.';
-    if (message.startsWith('GEMINI_API_KEY')) {
-      userMessage = 'Server configuration error';
-    } else if (message.includes('Empty response')) {
-      userMessage = 'AI tidak dapat memproses permintaan ini. Coba dengan nama produk yang berbeda.';
-    } else if (message.includes('non-JSON')) {
-      userMessage = 'AI mengembalikan format yang tidak valid. Silakan coba lagi.';
-    } else if (message.includes('API call failed')) {
-      userMessage = 'Koneksi ke AI gagal. Periksa koneksi internet dan coba lagi.';
-    }
-
+    if (message.startsWith('GEMINI_API_KEY')) userMessage = 'Server configuration error';
+    else if (message.includes('Empty response')) userMessage = 'AI tidak dapat memproses permintaan ini.';
+    else if (message.includes('non-JSON')) userMessage = 'AI mengembalikan format tidak valid, silakan coba lagi.';
+    else if (message.includes('API call failed')) userMessage = 'Koneksi ke AI gagal, coba lagi.';
     return res.status(502).json({ error: userMessage });
   }
 }
