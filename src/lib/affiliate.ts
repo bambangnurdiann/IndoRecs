@@ -10,19 +10,43 @@ export function generateShopeeAffiliateLink(productName: string): string {
   return `https://atid.me/002bc7002poy?url=${encodeURIComponent(shopeeSearchUrl)}`;
 }
 
+/** Fallback product URL used when no valid /p/ page is discovered. */
+const BLIBLI_FALLBACK_URL = 'https://www.blibli.com/home';
+
 /**
- * Generate Blibli affiliate deep link via OneLink.
- * Builds a direct deep link URL with af_dp and af_r parameters properly encoded.
+ * Derive a ``blibli://…`` deep-link path from a Blibli web URL.
+ * For product pages we swap the scheme and host; for everything else
+ * we fall back to ``blibli://home`` to avoid broken deep links.
  */
-export function generateBlibliAffiliateLink(productName: string): string {
-  const keyword = encodeURIComponent(productName);
+function deriveDeepLink(productUrl: string): string {
+  try {
+    const u = new URL(productUrl);
+    if (u.hostname === 'www.blibli.com' && u.pathname.startsWith('/p/')) {
+      return `blibli://${u.pathname}${u.search}${u.hash}`;
+    }
+  } catch { /* invalid URL — use fallback */ }
+  return 'blibli://home';
+}
 
-  const blibliSearchUrl = `https://www.blibli.com/cari/${keyword}`;
+/**
+ * Generate a Blibli affiliate link backed by a **product page** URL.
+ *
+ * Architecture:
+ * 1. Product URL → OneLink (with ``af_dp`` deep-link + ``af_r`` web fallback)
+ * 2. OneLink → Accesstrade shortener (``atid.me``) for tracking
+ *
+ * @param productUrl  A valid ``https://www.blibli.com/p/…`` URL, or the
+ *                    fallback homepage URL.  Must NOT be a ``/cari/`` URL —
+ *                    those are not eligible for affiliate commission.
+ * @returns Accesstrade-wrapped affiliate link ready for the browser.
+ */
+export function generateBlibliAffiliateLink(productUrl: string): string {
+  const safeUrl = productUrl || BLIBLI_FALLBACK_URL;
 
-  const afDp = encodeURIComponent(`blibli://cari/${keyword}`);
-  const afR = encodeURIComponent(blibliSearchUrl);
+  const afR = encodeURIComponent(safeUrl);
+  const afDp = encodeURIComponent(deriveDeepLink(safeUrl));
 
-  return (
+  const oneLinkUrl =
     `https://blibliaffiliate.onelink.me/JLcX` +
     `?af_force_deeplink=true` +
     `&af_param_forwarding=true` +
@@ -32,7 +56,9 @@ export function generateBlibliAffiliateLink(productName: string): string {
     `&utm_source=affiliates` +
     `&utm_medium=affb_6841170ad1b1481a31281e8b` +
     `&utm_campaign=business_share` +
-    `&utm_content={psn}-{clickid}`
-  );
+    `&utm_content={psn}-{clickid}`;
+
+  // Wrap with Accesstrade shortener for proper affiliate tracking.
+  return `https://atid.me/00dh9j002poy?url=${encodeURIComponent(oneLinkUrl)}`;
 }
 

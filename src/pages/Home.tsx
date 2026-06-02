@@ -11,14 +11,23 @@ import { db } from '../lib/firebase';
 import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
 import { Loader2, ArrowRight, X } from 'lucide-react';
 import { AdPlacement } from '../components/AdPlacement';
-import { generateShopeeAffiliateLink, generateBlibliAffiliateLink } from '../lib/affiliate';
+import { generateShopeeAffiliateLink } from '../lib/affiliate';
 import toast from 'react-hot-toast';
 
+/**
+ * Inject Shopee affiliate URLs client-side.
+ * Blibli affiliate URLs are already resolved server-side and included
+ * in the API response as ``blibli_affiliate_url``.
+ */
 function injectAffiliateUrls(data) {
   return {
     ...data,
     products: data.products.map(function(p) {
-      return { ...p, affiliate_url: generateShopeeAffiliateLink(p.name), blibli_affiliate_url: generateBlibliAffiliateLink(p.name) };
+      return {
+        ...p,
+        affiliate_url: generateShopeeAffiliateLink(p.name),
+        // blibli_affiliate_url is already provided by the server — keep it.
+      };
     }),
   };
 }

@@ -4,10 +4,64 @@ type ApiRequest = { method?: string; body?: unknown; headers?: Record<string,str
 type ApiResponse = { setHeader: (n:string,v:string)=>void; status: (c:number)=>ApiResponse; json: (b:unknown)=>unknown; end: ()=>unknown; write?: (chunk:string)=>void; };
 
 import { GoogleGenAI } from '@google/genai';
+import { findBlibliProductUrl } from './_lib/blibli';
+import { generateBlibliAffiliateLink } from '../src/lib/affiliate';
 
 interface RecommendBody {
   category?: string; subcategory?: string; budget?: string;
   needs?: string[]; detail?: string; stream?: boolean;
+}
+
+interface GeminiProduct {
+  rank: number;
+  name: string;
+  brand: string;
+  price_min: string;
+  price_max: string;
+  is_bekas: boolean;
+  badge: string;
+  match_score: number;
+  match_reason: string;
+  key_specs: string[];
+  pros: string[];
+  cons: string[];
+  best_for: string;
+  not_for: string;
+  blibli_url?: string;
+  shopee_url?: string;
+  whatsapp_text: string;
+  blibli_affiliate_url?: string;
+}
+
+interface GeminiResponse {
+  budget_warning: boolean;
+  budget_warning_message: string;
+  summary: string;
+  products: GeminiProduct[];
+  tips: string;
+  alternative_suggestion: string;
+}
+
+const BLIBLI_FALLBACK_URL = 'https://www.blibli.com/home';
+
+/**
+ * Resolve Blibli affiliate URLs for every product in parallel.
+ * Products that already have a valid ``blibli_url`` from Gemini are tried
+ * first; otherwise we search by product name.
+ */
+async function injectBlibliAffiliateUrls(products: GeminiProduct[]): Promise<void> {
+  const lookups = products.map(async (p) => {
+    // Prefer the URL Gemini already returned if it looks like a product page.
+    const candidateUrl =
+      p.blibli_url && p.blibli_url.includes('/p/') ? p.blibli_url : null;
+
+    const productUrl =
+      candidateUrl ?? (await findBlibliProductUrl(p.name)) ?? BLIBLI_FALLBACK_URL;
+
+    p.blibli_affiliate_url = generateBlibliAffiliateLink(productUrl);
+  });
+
+  await Promise.all(lookups);
 }
 
 const MAX_FIELD_LEN = 200;
@@ -62,7 +116,7 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
 
     const ai = getClient();
 
-    // Streaming path: keeps Vercel connection alive for long responses
+    // --- Streaming path ---
     if (body.stream === true) {
       res.setHeader('Content-Type', 'text/plain; charset=utf-8');
       res.setHeader('Transfer-Encoding', 'chunked');
@@ -74,15 +128,29 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
         config: { responseMimeType: 'application/json' },
       });
 
+      // Buffer all chunks so we can inject affiliate URLs before responding.
+      let fullText = '';
       for await (const chunk of stream) {
         if (chunk.text) {
-          res.write!(chunk.text);
+          fullText += chunk.text;
         }
       }
+
+      if (!fullText.trim()) {
+        throw new Error('Empty response from Gemini');
+      }
+
+      const cleaned = extractJson(fullText);
+      const parsed: GeminiResponse = JSON.parse(cleaned);
+
+      // Resolve Blibli product pages and generate affiliate links (server-side).
+      await injectBlibliAffiliateUrls(parsed.products);
+
+      res.write!(JSON.stringify(parsed));
       return res.end();
     }
 
-    // Non-streaming fallback
+    // --- Non-streaming fallback ---
     const response = await ai.models.generateContent({
       model: GEMINI_MODEL,
       contents: prompt,
@@ -95,7 +163,12 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
     }
 
     const cleaned = extractJson(rawText);
-    return res.status(200).json(JSON.parse(cleaned));
+    const parsed: GeminiResponse = JSON.parse(cleaned);
+
+    // Resolve Blibli product pages and generate affiliate links (server-side).
+    await injectBlibliAffiliateUrls(parsed.products);
+
+    return res.status(200).json(parsed);
 
   } catch (error: any) {
     console.error('[recommend] Error:', error?.message, error?.stack?.slice(0, 300));

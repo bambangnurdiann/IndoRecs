@@ -3,10 +3,61 @@ type ApiRequest = { method?: string; body?: unknown };
 type ApiResponse = { setHeader: (n:string,v:string)=>void; status: (c:number)=>ApiResponse; json: (b:unknown)=>unknown; end: ()=>unknown; };
 
 import { GoogleGenAI } from '@google/genai';
+import { findBlibliProductUrl } from './_lib/blibli';
+import { generateBlibliAffiliateLink } from '../src/lib/affiliate';
 
 interface VisualSearchBody {
   image?: string;
   mimeType?: string;
+}
+
+interface GeminiProduct {
+  rank: number;
+  name: string;
+  brand: string;
+  price_min: string;
+  price_max: string;
+  is_bekas: boolean;
+  badge: string;
+  match_score: number;
+  match_reason: string;
+  key_specs: string[];
+  pros: string[];
+  cons: string[];
+  best_for: string;
+  not_for: string;
+  blibli_url?: string;
+  shopee_url?: string;
+  whatsapp_text: string;
+  blibli_affiliate_url?: string;
+}
+
+interface GeminiResponse {
+  budget_warning: boolean;
+  budget_warning_message: string;
+  summary: string;
+  products: GeminiProduct[];
+  tips: string;
+  alternative_suggestion: string;
+}
+
+const BLIBLI_FALLBACK_URL = 'https://www.blibli.com/home';
+
+/**
+ * Resolve Blibli affiliate URLs for every product in parallel.
+ */
+async function injectBlibliAffiliateUrls(products: GeminiProduct[]): Promise<void> {
+  const lookups = products.map(async (p) => {
+    const candidateUrl =
+      p.blibli_url && p.blibli_url.includes('/p/') ? p.blibli_url : null;
+
+    const productUrl =
+      candidateUrl ?? (await findBlibliProductUrl(p.name)) ?? BLIBLI_FALLBACK_URL;
+
+    p.blibli_affiliate_url = generateBlibliAffiliateLink(productUrl);
+  });
+
+  await Promise.all(lookups);
 }
 
 function extractJson(raw: string): string {
@@ -56,7 +107,12 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
     }
 
     const cleaned = extractJson(rawText);
-    return res.status(200).json(JSON.parse(cleaned));
+    const parsed: GeminiResponse = JSON.parse(cleaned);
+
+    // Resolve Blibli product pages and generate affiliate links (server-side).
+    await injectBlibliAffiliateUrls(parsed.products);
+
+    return res.status(200).json(parsed);
 
   } catch (error: any) {
     console.error('[visual-search] Error:', error?.message, error?.stack?.slice(0, 300));
