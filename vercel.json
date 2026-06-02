@@ -1,13 +1,14 @@
 {
+  "regions": ["sin1"],
   "functions": {
     "api/compare.ts": {
-      "maxDuration": 30
+      "maxDuration": 60
     },
     "api/recommend.ts": {
-      "maxDuration": 30
+      "maxDuration": 60
     },
     "api/visual-search.ts": {
-      "maxDuration": 30
+      "maxDuration": 60
     }
   }
 }
