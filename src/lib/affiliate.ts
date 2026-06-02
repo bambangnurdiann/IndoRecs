@@ -11,29 +11,28 @@ export function generateShopeeAffiliateLink(productName: string): string {
 }
 
 /**
- * Generate Blibli affiliate deep link via Accesstrade.
- * Template URL: product search di blibli.com dengan keyword nama produk.
+ * Generate Blibli affiliate deep link via OneLink.
+ * Builds a direct deep link URL with af_dp and af_r parameters properly encoded.
  */
 export function generateBlibliAffiliateLink(productName: string): string {
   const keyword = encodeURIComponent(productName);
 
-  // URL search Blibli yang valid
-  const blibliSearchUrl = `https://www.blibli.com/search?keyword=${keyword}`;
+  const blibliSearchUrl = `https://www.blibli.com/cari/${keyword}`;
 
-  // Deep link menggunakan format yang sudah kamu test (dari contoh iPhone 16 & Infinix)
-  const deepLinkUrl =
+  const afDp = encodeURIComponent(`blibli://cari/${keyword}`);
+  const afR = encodeURIComponent(blibliSearchUrl);
+
+  return (
     `https://blibliaffiliate.onelink.me/JLcX` +
     `?af_force_deeplink=true` +
     `&af_param_forwarding=true` +
-    `&af_dp=blibli%3A%2F%2F%7Blanding_page_url_without_domain%7D` +
+    `&af_dp=${afDp}` +
     `&at_fnlp_parameter_name=af_r` +
-    `&af_r=${blibliSearchUrl}` +
+    `&af_r=${afR}` +
     `&utm_source=affiliates` +
     `&utm_medium=affb_6841170ad1b1481a31281e8b` +
     `&utm_campaign=business_share` +
-    `&utm_content={psn}-{clickid}`;
-
-  // Bungkus dengan shortener Accesstrade kamu
-  return `https://atid.me/00dh9j002poy?url=${encodeURIComponent(deepLinkUrl)}`;
+    `&utm_content={psn}-{clickid}`
+  );
 }
 
