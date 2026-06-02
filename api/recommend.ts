@@ -46,14 +46,25 @@ const BLIBLI_FALLBACK_URL = 'https://www.blibli.com/home';
 
 /**
  * Resolve Blibli affiliate URLs for every product in parallel.
- * Products that already have a valid ``blibli_url`` from Gemini are tried
- * first; otherwise we search by product name.
+ *
+ * Priority:
+ * 1. Gemini-provided blibli_url containing /p/ or /jual/ (trusted — no scraping)
+ * 2. Server-side scraping via findBlibliProductUrl() (last-resort fallback)
+ * 3. BLIBLI_FALLBACK_URL (homepage)
+ *
+ * /cari/ URLs are never used — they are not eligible for affiliate commission.
  */
+function isValidBlibliUrl(url: string | undefined): boolean {
+  if (!url) return false;
+  // Accept /p/ (product page) or /jual/ (search listing) from Gemini.
+  // Reject /cari/, homepage, and anything else.
+  return url.includes('/p/') || url.includes('/jual/');
+}
+
 async function injectBlibliAffiliateUrls(products: GeminiProduct[]): Promise<void> {
   const lookups = products.map(async (p) => {
-    // Prefer the URL Gemini already returned if it looks like a product page.
-    const candidateUrl =
-      p.blibli_url && p.blibli_url.includes('/p/') ? p.blibli_url : null;
+    // Use Gemini's URL directly if it's a valid product or search page.
+    const candidateUrl = isValidBlibliUrl(p.blibli_url) ? p.blibli_url! : null;
 
     const productUrl =
       candidateUrl ?? (await findBlibliProductUrl(p.name)) ?? BLIBLI_FALLBACK_URL;
@@ -112,7 +123,7 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
       return res.status(400).json({ error: 'Field wajib diisi.' });
     }
 
-    const prompt = `Carikan rekomendasi produk:\nKategori: ${category} - ${subcategory}\nBudget: ${budget}\nKebutuhan: ${needsArr.join(', ')}\nDetail: ${detail}\n\nBalas HANYA JSON (tanpa markdown, tanpa backtick):{"budget_warning":false,"budget_warning_message":"","summary":"ringkasan singkat","products":[{"rank":1,"name":"Nama Produk","brand":"Brand","price_min":"Rp X","price_max":"Rp Y","is_bekas":false,"badge":"Best Value","match_score":85,"match_reason":"alasan","key_specs":["spek"],"pros":["pro"],"cons":["con"],"best_for":"cocok","not_for":"tidak cocok","blibli_url":"https://www.blibli.com/p/nama-produk/is--KODE-PRODUK","shopee_url":"https://shopee.co.id/search?keyword=nama+produk","whatsapp_text":"teks"}],"tips":"tips","alternative_suggestion":"saran"}\nKembalikan 3 produk. Untuk blibli_url, gunakan format URL produk spesifik Blibli: https://www.blibli.com/p/{slug-produk}/is--{kode-sku} jika diketahui, atau https://www.blibli.com/jual/{keyword} jika tidak. Respond ONLY JSON. Bahasa Indonesia.`;
+    const prompt = `Carikan rekomendasi produk:\nKategori: ${category} - ${subcategory}\nBudget: ${budget}\nKebutuhan: ${needsArr.join(', ')}\nDetail: ${detail}\n\nBalas HANYA JSON (tanpa markdown, tanpa backtick):{"budget_warning":false,"budget_warning_message":"","summary":"ringkasan singkat","products":[{"rank":1,"name":"Nama Produk","brand":"Brand","price_min":"Rp X","price_max":"Rp Y","is_bekas":false,"badge":"Best Value","match_score":85,"match_reason":"alasan","key_specs":["spek"],"pros":["pro"],"cons":["con"],"best_for":"cocok","not_for":"tidak cocok","blibli_url":"https://www.blibli.com/p/nama-produk/is--KODE-PRODUK","shopee_url":"https://shopee.co.id/search?keyword=nama+produk","whatsapp_text":"teks"}],"tips":"tips","alternative_suggestion":"saran"}\nKembalikan 3 produk.\n\nPENTING — Aturan blibli_url:\n- Format ideal: https://www.blibli.com/p/{slug-produk}/ps--{kode-sku}\n  Contoh: iPhone 15 Pro → https://www.blibli.com/p/apple-iphone-15-pro/ps--APF-70017-00303\n  Contoh: MSI Modern 14 → https://www.blibli.com/p/msi-modern-14/ps--ACI-27019-05020\n  Contoh: Samsung Galaxy A55 → https://www.blibli.com/p/samsung-galaxy-a55/ps--SAM-70017-00500\n- Jika kamu tidak tahu SKU-nya, gunakan: https://www.blibli.com/p/{slug-nama-produk-dengan-dash}\n  Contoh: Redmi Note 13 → https://www.blibli.com/p/redmi-note-13\n- Jika sama sekali tidak tahu URL produk spesifik, gunakan: https://www.blibli.com/jual/{keyword-produk}\n- JANGAN gunakan URL /cari/ karena tidak eligible untuk komisi afiliasi.\n\nRespond ONLY JSON. Bahasa Indonesia.`;
 
     const ai = getClient();
 
