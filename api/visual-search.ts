@@ -68,7 +68,7 @@ async function injectBlibliAffiliateUrls(products: GeminiProduct[]): Promise<voi
     const productUrl =
       candidateUrl ?? (await findBlibliProductUrl(p.name)) ?? BLIBLI_FALLBACK_URL;
 
-    p.blibli_affiliate_url = generateBlibliAffiliateLink(productUrl);
+    p.blibli_affiliate_url = generateBlibliAffiliateLink(productUrl, p.brand);
   });
 
   await Promise.all(lookups);
