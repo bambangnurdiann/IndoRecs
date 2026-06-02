@@ -3,8 +3,8 @@ type ApiRequest = { method?: string; body?: unknown };
 type ApiResponse = { setHeader: (n:string,v:string)=>void; status: (c:number)=>ApiResponse; json: (b:unknown)=>unknown; end: ()=>unknown; };
 
 import { GoogleGenAI } from '@google/genai';
-import { findBlibliProductUrl } from './_lib/blibli';
-import { generateBlibliAffiliateLink } from '../src/lib/affiliate';
+import { findBlibliProductUrl } from './_lib/blibli.js';
+import { generateBlibliAffiliateLink } from '../src/lib/affiliate.js';
 
 interface VisualSearchBody {
   image?: string;

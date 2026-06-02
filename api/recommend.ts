@@ -4,8 +4,8 @@ type ApiRequest = { method?: string; body?: unknown; headers?: Record<string,str
 type ApiResponse = { setHeader: (n:string,v:string)=>void; status: (c:number)=>ApiResponse; json: (b:unknown)=>unknown; end: ()=>unknown; write?: (chunk:string)=>void; };
 
 import { GoogleGenAI } from '@google/genai';
-import { findBlibliProductUrl } from './_lib/blibli';
-import { generateBlibliAffiliateLink } from '../src/lib/affiliate';
+import { findBlibliProductUrl } from './_lib/blibli.js';
+import { generateBlibliAffiliateLink } from '../src/lib/affiliate.js';
 
 interface RecommendBody {
   category?: string; subcategory?: string; budget?: string;
