@@ -61,6 +61,28 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
     const prompt = `Carikan rekomendasi produk:\nKategori: ${category} - ${subcategory}\nBudget: ${budget}\nKebutuhan: ${needsArr.join(', ')}\nDetail: ${detail}\n\nBalas HANYA JSON (tanpa markdown, tanpa backtick):{"budget_warning":false,"budget_warning_message":"","summary":"ringkasan singkat","products":[{"rank":1,"name":"Nama Produk","brand":"Brand","price_min":"Rp X","price_max":"Rp Y","is_bekas":false,"badge":"Best Value","match_score":85,"match_reason":"alasan","key_specs":["spek"],"pros":["pro"],"cons":["con"],"best_for":"cocok","not_for":"tidak cocok","blibli_url":"https://www.blibli.com/p/nama-produk/is--KODE-PRODUK","shopee_url":"https://shopee.co.id/search?keyword=nama+produk","whatsapp_text":"teks"}],"tips":"tips","alternative_suggestion":"saran"}\nKembalikan 3 produk. Untuk blibli_url, gunakan format URL produk spesifik Blibli: https://www.blibli.com/p/{slug-produk}/is--{kode-sku} jika diketahui, atau https://www.blibli.com/jual/{keyword} jika tidak. Respond ONLY JSON. Bahasa Indonesia.`;
 
     const ai = getClient();
+
+    // Streaming path: keeps Vercel connection alive for long responses
+    if (body.stream === true) {
+      res.setHeader('Content-Type', 'text/plain; charset=utf-8');
+      res.setHeader('Transfer-Encoding', 'chunked');
+      res.setHeader('X-Content-Type-Options', 'nosniff');
+
+      const stream = await ai.models.generateContentStream({
+        model: GEMINI_MODEL,
+        contents: prompt,
+        config: { responseMimeType: 'application/json' },
+      });
+
+      for await (const chunk of stream) {
+        if (chunk.text) {
+          res.write!(chunk.text);
+        }
+      }
+      return res.end();
+    }
+
+    // Non-streaming fallback
     const response = await ai.models.generateContent({
       model: GEMINI_MODEL,
       contents: prompt,

@@ -54,13 +54,14 @@ export default function Home(_a) {
       var res = await fetch('/api/recommend', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(formData),
+        body: JSON.stringify({ ...formData, stream: true }),
       });
       if (!res.ok) {
         var err = await res.json().catch(function() { return {}; });
         throw new Error(err.error || 'Gagal mencari rekomendasi');
       }
-      var raw = await res.json();
+      var rawText = await res.text();
+      var raw = JSON.parse(rawText);
       var data = injectAffiliateUrls(raw);
       setResult(data);
 
