@@ -48,7 +48,7 @@ const BLIBLI_FALLBACK_URL = 'https://www.blibli.com/home';
  * Resolve Blibli affiliate URLs for every product in parallel.
  *
  * Priority:
- * 1. Gemini-provided blibli_url containing /p/ or /jual/ (trusted — no scraping)
+ * 1. Gemini-provided blibli_url containing /p/ (trusted — no scraping)
  * 2. Server-side scraping via findBlibliProductUrl() (last-resort fallback)
  * 3. BLIBLI_FALLBACK_URL (homepage)
  *
@@ -56,9 +56,7 @@ const BLIBLI_FALLBACK_URL = 'https://www.blibli.com/home';
  */
 function isValidBlibliUrl(url: string | undefined): boolean {
   if (!url) return false;
-  // Accept /p/ (product page) or /jual/ (search listing) from Gemini.
-  // Reject /cari/, homepage, and anything else.
-  return url.includes('/p/') || url.includes('/jual/');
+  return url.includes('/p/');
 }
 
 async function injectBlibliAffiliateUrls(products: GeminiProduct[]): Promise<void> {
@@ -123,7 +121,7 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
       return res.status(400).json({ error: 'Field wajib diisi.' });
     }
 
-    const prompt = `Carikan rekomendasi produk:\nKategori: ${category} - ${subcategory}\nBudget: ${budget}\nKebutuhan: ${needsArr.join(', ')}\nDetail: ${detail}\n\nBalas HANYA JSON (tanpa markdown, tanpa backtick):{"budget_warning":false,"budget_warning_message":"","summary":"ringkasan singkat","products":[{"rank":1,"name":"Nama Produk","brand":"Brand","price_min":"Rp X","price_max":"Rp Y","is_bekas":false,"badge":"Best Value","match_score":85,"match_reason":"alasan","key_specs":["spek"],"pros":["pro"],"cons":["con"],"best_for":"cocok","not_for":"tidak cocok","blibli_url":"https://www.blibli.com/p/nama-produk/is--KODE-PRODUK","shopee_url":"https://shopee.co.id/search?keyword=nama+produk","whatsapp_text":"teks"}],"tips":"tips","alternative_suggestion":"saran"}\nKembalikan 3 produk.\n\nPENTING — Aturan blibli_url:\n- Format ideal: https://www.blibli.com/p/{slug-produk}/ps--{kode-sku}\n  Contoh: iPhone 15 Pro → https://www.blibli.com/p/apple-iphone-15-pro/ps--APF-70017-00303\n  Contoh: MSI Modern 14 → https://www.blibli.com/p/msi-modern-14/ps--ACI-27019-05020\n  Contoh: Samsung Galaxy A55 → https://www.blibli.com/p/samsung-galaxy-a55/ps--SAM-70017-00500\n- Jika kamu tidak tahu SKU-nya, gunakan: https://www.blibli.com/p/{slug-nama-produk-dengan-dash}\n  Contoh: Redmi Note 13 → https://www.blibli.com/p/redmi-note-13\n- Jika sama sekali tidak tahu URL produk spesifik, gunakan: https://www.blibli.com/jual/{keyword-produk}\n- JANGAN gunakan URL /cari/ karena tidak eligible untuk komisi afiliasi.\n\nRespond ONLY JSON. Bahasa Indonesia.`;
+    const prompt = `Carikan rekomendasi produk:\nKategori: ${category} - ${subcategory}\nBudget: ${budget}\nKebutuhan: ${needsArr.join(', ')}\nDetail: ${detail}\n\nBalas HANYA JSON (tanpa markdown, tanpa backtick):{"budget_warning":false,"budget_warning_message":"","summary":"ringkasan singkat","products":[{"rank":1,"name":"Nama Produk","brand":"Brand","price_min":"Rp X","price_max":"Rp Y","is_bekas":false,"badge":"Best Value","match_score":85,"match_reason":"alasan","key_specs":["spek"],"pros":["pro"],"cons":["con"],"best_for":"cocok","not_for":"tidak cocok","blibli_url":"https://www.blibli.com/p/nama-produk/is--KODE-PRODUK","shopee_url":"https://shopee.co.id/search?keyword=nama+produk","whatsapp_text":"teks"}],"tips":"tips","alternative_suggestion":"saran"}\nKembalikan 3 produk.\n\nPENTING — blibli_url:\n- WAJIB format: https://www.blibli.com/p/{slug}/ps--{SKU}\n- Jika tidak tahu SKU, gunakan: https://www.blibli.com/p/{slug-nama-produk-asli}\n- Slug HARUS slug asli yang ada di Blibli, BUKAN karangan. Contoh valid:\n  Samsung Galaxy A55 5G → https://www.blibli.com/p/samsung-galaxy-a55-5g/ps--SAM-70017-00500\n  ASUS VivoBook 15 OLED → https://www.blibli.com/p/asus-vivobook-15-oled/ps--ACI-27019-09012\n  Xiaomi Redmi Note 13 4G → https://www.blibli.com/p/xiaomi-redmi-note-13-4g\n- Jika tidak yakin slugnya valid, isi dengan string kosong "" — JANGAN mengarang slug\n- JANGAN gunakan /jual/ atau /cari/\n\nRespond ONLY JSON. Bahasa Indonesia.`;
 
     const ai = getClient();
 
