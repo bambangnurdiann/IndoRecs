@@ -53,7 +53,6 @@ export default function About() {
               <li><strong>Google Gemini AI:</strong> Model AI canggih yang menghasilkan rekomendasi produk dalam Bahasa Indonesia dengan pemahaman konteks lokal.</li>
               <li><strong>Firebase:</strong> Infrastruktur Google Cloud untuk autentikasi pengguna, penyimpanan data riwayat dan wishlist.</li>
               <li><strong>React + Tailwind CSS:</strong> Antarmuka modern yang cepat, responsif, dan mendukung mode gelap/terang.</li>
-              <li><strong>Accesstrade:</strong> Sistem tautan afiliasi untuk produk Shopee dan Blibli yang memungkinkan kami menghasilkan pendapatan untuk mendukung operasional.</li>
             </ul>
           </section>
 
@@ -65,10 +64,6 @@ export default function About() {
             </div>
           </section>
 
-          <section>
-            <h2 className="text-lg font-bold text-gray-900 dark:text-white mb-2">Dibuat Oleh</h2>
-            <p>IndoRecs dikembangkan oleh <strong>Bambang Nurdiansyah</strong>, seorang software engineer yang passionate tentang AI dan teknologi untuk pasar Indonesia. Tujuannya sederhana: membuat pengalaman belanja online di Indonesia lebih cerdas dan efisien.</p>
-          </section>
         </div>
 
         <div className="mt-8 pt-6 border-t border-gray-100 dark:border-gray-700">
