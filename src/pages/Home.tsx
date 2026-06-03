@@ -16,8 +16,6 @@ import toast from 'react-hot-toast';
 
 /**
  * Inject Shopee affiliate URLs client-side.
- * Blibli affiliate URLs are already resolved server-side and included
- * in the API response as ``blibli_affiliate_url``.
  */
 function injectAffiliateUrls(data) {
   return {
@@ -26,7 +24,6 @@ function injectAffiliateUrls(data) {
       return {
         ...p,
         affiliate_url: generateShopeeAffiliateLink(p.name),
-        // blibli_affiliate_url is already provided by the server — keep it.
       };
     }),
   };

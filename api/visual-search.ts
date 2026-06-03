@@ -3,8 +3,6 @@ type ApiRequest = { method?: string; body?: unknown };
 type ApiResponse = { setHeader: (n:string,v:string)=>void; status: (c:number)=>ApiResponse; json: (b:unknown)=>unknown; end: ()=>unknown; };
 
 import { GoogleGenAI } from '@google/genai';
-import { findBlibliProductUrl } from './_lib/blibli.js';
-import { generateBlibliAffiliateLink } from '../src/lib/affiliate.js';
 
 interface VisualSearchBody {
   image?: string;
@@ -29,7 +27,6 @@ interface GeminiProduct {
   blibli_url?: string;
   shopee_url?: string;
   whatsapp_text: string;
-  blibli_affiliate_url?: string;
 }
 
 interface GeminiResponse {
@@ -39,37 +36,6 @@ interface GeminiResponse {
   products: GeminiProduct[];
   tips: string;
   alternative_suggestion: string;
-}
-
-const BLIBLI_FALLBACK_URL = 'https://www.blibli.com/home';
-
-/**
- * Resolve Blibli affiliate URLs for every product in parallel.
- *
- * Priority:
- * 1. Gemini-provided blibli_url containing /p/ (trusted — no scraping)
- * 2. Server-side scraping via findBlibliProductUrl() (last-resort fallback)
- * 3. BLIBLI_FALLBACK_URL (homepage)
- *
- * /cari/ URLs are never used — they are not eligible for affiliate commission.
- */
-function isValidBlibliUrl(url: string | undefined): boolean {
-  if (!url) return false;
-  return url.includes('/p/');
-}
-
-async function injectBlibliAffiliateUrls(products: GeminiProduct[]): Promise<void> {
-  const lookups = products.map(async (p) => {
-    // Use Gemini's URL directly if it's a valid product or search page.
-    const candidateUrl = isValidBlibliUrl(p.blibli_url) ? p.blibli_url! : null;
-
-    const productUrl =
-      candidateUrl ?? (await findBlibliProductUrl(p.name)) ?? BLIBLI_FALLBACK_URL;
-
-    p.blibli_affiliate_url = generateBlibliAffiliateLink(productUrl, p.brand);
-  });
-
-  await Promise.all(lookups);
 }
 
 function extractJson(raw: string): string {
@@ -120,9 +86,6 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
 
     const cleaned = extractJson(rawText);
     const parsed: GeminiResponse = JSON.parse(cleaned);
-
-    // Resolve Blibli product pages and generate affiliate links (server-side).
-    await injectBlibliAffiliateUrls(parsed.products);
 
     return res.status(200).json(parsed);
 

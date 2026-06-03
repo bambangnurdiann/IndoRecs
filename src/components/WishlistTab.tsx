@@ -21,11 +21,9 @@ export function WishlistTab({ wishlist, compareList, onCompareToggle, onWishlist
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {wishlist.map(item => {
             // Shopee: generate from name (search URL is always valid).
-            // Blibli: use the stored blibli_affiliate_url from the server.
             const productWithAffiliate: Product = {
               ...item.product,
               affiliate_url: generateShopeeAffiliateLink(item.product.name),
-              blibli_affiliate_url: item.product.blibli_affiliate_url,
             };
             return (
               <ProductCard
